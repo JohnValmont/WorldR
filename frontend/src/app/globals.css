@@ -415,12 +415,20 @@ td {
   }
 }
 
-.business-page-inner {
+/* -- The page frame ------------------------------------------------- */
+/* ONE content width for every game screen: the same centred column as the
+   top bar (BackBar) and Politics, so nothing hugs the left edge on a wide
+   monitor. Width comes from --page-max (tokens.css). PageShell, PageHeader
+   and Tabs (inset="page") use it; screens with their own layout add the
+   class to their outer wrapper rather than inventing another max width. */
+.page-frame {
   width: 100%;
-  max-width: 1680px;
-  margin: 0 auto;
-  padding: 24px 28px 56px;
+  max-width: var(--page-max, 1720px);
+  margin-inline: auto;
+  padding-inline: 1rem;
 }
+@media (min-width: 640px)  { .page-frame { padding-inline: 1.5rem; } }
+@media (min-width: 1280px) { .page-frame { padding-inline: 2rem; } }
 
 /* -- PageShell responsive grid -------------------------------------- */
 /* Content stacks above the sidebar on mobile/tablet, then splits into a

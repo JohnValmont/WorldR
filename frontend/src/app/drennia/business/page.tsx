@@ -19,7 +19,7 @@ import CapitalPartnersDeskTab from './CapitalPartnersDeskTab';
 import BanksTab from './BanksTab';
 import AnalyticsDashboard from '@/components/analytics/AnalyticsDashboard';
 import {
-  Card, Button, StatChip, StatCard, DataRow, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell
+  Card, Button, StatChip, StatCard, DataRow, Badge, StatusDot, SectionHeading, TerminalPanel, Tabs, PageShell, PageHeader, HeaderStat
 } from '@/components/ui';
 import { BookOpen, ArrowLeft, Briefcase, TrendingUp, Wallet, Lock, Building2, Landmark, FileText, ArrowRight, ScrollText, Scale } from 'lucide-react';
 
@@ -191,6 +191,20 @@ const SECTORS = [
   { id: 'Energy',               desc: 'Fuel, steam, coal, and energy distribution.',                      available: false, note: 'Later' },
 ];
 
+
+// ─── FILING NUMBERS ──────────────────────────────────────────────────────────
+// Mirror of the server's rules (backend/src/api/constants/companyAssets.ts OPEN_INDUSTRIES
+// minCapital, checked again in company.controller createCompany). Change both together.
+const SECTOR_MIN_CAPITAL = { manufacturing: 500_000, finance: 50_000 } as const;
+const sectorMinCapital = (sectorId: string) =>
+  sectorId === 'Manufacturing' ? SECTOR_MIN_CAPITAL.manufacturing : SECTOR_MIN_CAPITAL.finance;
+/** One-off filing fee per legal structure. A Capital Partners firm is always 'private-company'. */
+const FILING_FEES: Record<string, number> = { 'sole-trader': 500, 'private-company': 5_000, 'public-corporation': 50_000 };
+const LEGAL_STRUCTURES = [
+  { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
+  { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Add partners and issue private shares.' },
+  { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading.' },
+] as const;
 
 // ─── HQ OPTIONS ──────────────────────────────────────────────────────────────
 // Loaded from the server (GET /companies/hq-options): the regions of the player's own nation.
@@ -494,51 +508,88 @@ export default function BusinessPage() {
 
   if (!authorized) return null;
 
+  const companyCount = operationalCompanies.length + (financeCompany ? 1 : 0);
+  const inDesk = activeTab === 'companies' && !!selectedCompanyId;
+  const isManufacturer = company?.sector === 'manufacturing';
+  const analyticsCompany: { id: string; countryId: string } | null = company
+    ? { id: company.id, countryId: (company as any).country_id || company.countryId || 'drennia' }
+    : operationalCompanies[0]
+      ? { id: operationalCompanies[0].id, countryId: operationalCompanies[0].country_id || 'drennia' }
+      : null;
+  const guideButton = isManufacturer ? (
+    <button
+      type="button"
+      onClick={() => setShowMfgGuide(true)}
+      className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-[13px] font-medium text-ink-dim transition-colors hover:bg-white/5 hover:text-ink"
+    >
+      <BookOpen size={14} aria-hidden /> Manufacturing guide
+    </button>
+  ) : null;
+
   return (
-    <div className="flex flex-col h-full w-full bg-[#0B0D12] text-zinc-100 overflow-hidden">
+    <div className="flex w-full flex-1 flex-col bg-bg text-ink">
 
-      {/* ── Enhanced Business Header ── */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-[#262B36] bg-[#13161E] shrink-0 flex-wrap gap-3">
-        {/* Left: where you are (the global bar has Back and the brand) */}
-        <div className="flex items-center gap-2.5">
-          <Briefcase size={15} className="text-accent" />
-          {company
-            ? <StatusDot variant="live" label={company.name} />
-            : (operationalCompanies.length + (financeCompany ? 1 : 0)) > 0
-              ? <span className="text-[13px] text-ink-dim">{operationalCompanies.length + (financeCompany ? 1 : 0)} {(operationalCompanies.length + (financeCompany ? 1 : 0)) === 1 ? 'company' : 'companies'}</span>
-              : <span className="text-[13px] text-ink-dim">No company yet</span>}
-        </div>
-
-        {/* Centre: real balances only (no decorative sparklines: players read them as data) */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <StatChip label="Net Worth" value={formatMoney(netWorth)} valueColor="amber" />
-          <StatChip label="Cash in Hand" value={formatMoney(playerCash)} valueColor="green" />
-          {company && (
-            <StatChip label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueColor="amber" />
-          )}
-        </div>
-
-        {/* Right: time control */}
-        <div className="flex items-center gap-3">
-          <WorldTimeControl />
-        </div>
-      </header>
-
-      {/* ── Page Title ── */}
-      <div className="flex items-center gap-2.5 px-4 md:px-6 pt-3.5 pb-1.5 shrink-0">
-        <h1 className="font-display text-xl font-semibold tracking-wide text-ink m-0">Business</h1>
-        {company && <Badge variant="green" dot>{company.sector === 'manufacturing' ? 'Manufacturing' : 'Logistics'}</Badge>}
-        {company?.sector === 'manufacturing' && (
-          <button
-            type="button"
-            onClick={() => setShowMfgGuide(true)}
-            title="Manufacturing & Automobiles Guide"
-            className="btn-secondary !px-3 !py-1 !text-[12px]"
-          >
-            <BookOpen size={13} aria-hidden /> Manufacturing guide
-          </button>
+      {/* ── Header: where you are, your real balances, the clock, then the sections ── */}
+      <PageHeader
+        kicker={company
+          ? `${isManufacturer ? 'Car manufacturer' : 'Logistics'} · ${company.name}`
+          : companyCount > 0
+            ? `${companyCount} ${companyCount === 1 ? 'company' : 'companies'}`
+            : 'Commercial registry'}
+        title="Business"
+        description={company || companyCount > 0
+          ? 'Run your companies month by month, raise money from the banks and trade shares on the exchange.'
+          : 'Register a company, run it month by month, and trade shares on the exchange.'}
+        aside={
+          <>
+            <HeaderStat label="Net worth" value={formatMoney(netWorth)} tone="accent" />
+            <HeaderStat label="Cash in hand" value={formatMoney(playerCash)} tone="good" />
+            {company && <HeaderStat label="Company cash" value={formatMoney(company.companyCash ?? 0)} />}
+            <div className="hidden sm:block"><WorldTimeControl /></div>
+          </>
+        }
+      >
+        {inDesk ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-3">
+            <nav aria-label="Breadcrumb">
+              <ol className="m-0 flex list-none flex-wrap items-center gap-1.5 p-0 text-[13px]">
+                <li>
+                  <button type="button" className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 font-medium text-ink-dim transition-colors hover:text-accent"
+                    onClick={() => { setActiveTab('companies'); setSelectedCompanyId(null); }}>
+                    <ArrowLeft size={14} aria-hidden /> My companies
+                  </button>
+                </li>
+                <li aria-hidden className="text-ink-faint">/</li>
+                <li aria-current="page" className="px-1 font-semibold text-accent">
+                  {(selectedCompanyId === financeCompany?.id ? financeCompany?.name : company?.name) || 'Company'}
+                </li>
+              </ol>
+            </nav>
+            {guideButton}
+          </div>
+        ) : (
+          <Tabs
+            inset="none"
+            label="Business sections"
+            tabs={SUB_TABS.map(t => ({
+              id: t.id,
+              label: t.label,
+              // Analytics reads the player's operating company (a finance firm has no car sales).
+              locked: t.requiresCompany && (
+                t.id === 'companies'
+                  ? (operationalCompanies.length === 0 && !financeCompany)
+                  : !analyticsCompany
+              ),
+            }))}
+            activeId={activeTab}
+            onChange={(id: string) => {
+              setActiveTab(id as SubTab);
+              if (id !== 'companies') setSelectedCompanyId(null);
+            }}
+            trailing={guideButton}
+          />
         )}
-      </div>
+      </PageHeader>
 
       {/* ── Manufacturing & Automobiles Guide Panel ── */}
       {showMfgGuide && (
@@ -772,82 +823,20 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
       )}
 
 
-      {/* ── Subtabs & Breadcrumbs ── */}
-      <div className="px-4 md:px-6 border-b border-zinc-800 shrink-0">
-        {/* Dynamic Breadcrumbs */}
-        {/* Breadcrumbs only when you are below a tab (the tabs already say where you are) */}
-        {(activeTab === 'banks' || (activeTab === 'companies' && selectedCompanyId)) && (
-        <div className="flex gap-2 pt-2.5 pb-1 text-[12px] text-ink-faint">
-          <span className="cursor-pointer text-ink-dim hover:text-ink transition-colors" onClick={() => { setActiveTab('overview'); setSelectedCompanyId(null); }}>Business Desk</span>
-          {activeTab === 'companies' && (
-            <>
-              <span>→</span>
-              <span className={`cursor-pointer transition-colors ${!selectedCompanyId ? 'text-terminal-amber' : 'text-zinc-500 hover:text-zinc-300'}`} onClick={() => setSelectedCompanyId(null)}>My Companies</span>
-            </>
-          )}
-          {activeTab === 'companies' && selectedCompanyId && company && (
-            <>
-              <span>→</span>
-              <span className="text-accent">{company.name}</span>
-            </>
-          )}
-          {activeTab === 'banks' && (
-            <>
-              <span>→</span>
-              <span className="text-accent">Banks</span>
-            </>
-          )}
-        </div>
-        )}
-
-        {/* Subtabs */}
-        {!(activeTab === 'companies' && selectedCompanyId) && activeTab !== 'banks' && (
-          <div className="mt-4">
-            <Tabs
-              tabs={SUB_TABS.map(t => ({
-                id: t.id,
-                label: t.label,
-                locked: t.requiresCompany && (
-                  t.id === 'companies'
-                    ? (operationalCompanies.length === 0 && !financeCompany)
-                    : !company
-                ),
-              }))}
-              activeId={activeTab}
-              onChange={(id: string) => {
-                setActiveTab(id as SubTab);
-                if (id !== 'companies') setSelectedCompanyId(null);
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* ── Back / Breadcrumb Navigation (Anchors) ── */}
-      <div className="px-4 md:px-6 pt-2 shrink-0">
-        {activeTab === 'companies' && selectedCompanyId && company && (
-          <span className="cursor-pointer text-ink-dim hover:text-accent text-[13px] font-medium transition-colors" onClick={() => setSelectedCompanyId(null)}>
-            ← Back to Companies
-          </span>
-        )}
-        {activeTab === 'banks' && (
-          <span className="cursor-pointer text-ink-dim hover:text-accent text-[13px] font-medium transition-colors" onClick={() => setActiveTab('overview')}>
-            ← Back to Overview
-          </span>
-        )}
-      </div>
-
       {/* ── Tab Content ── */}
-      <div className="flex-1 overflow-y-auto animate-slide-in">
+      <div className="flex-1 animate-slide-in">
         {activeTab === 'overview'  && <PageShell className="py-6"><OverviewTab company={company} playerCash={playerCash} netWorth={netWorth} onStartBusiness={() => setActiveTab('start')} onViewContracts={() => { setActiveTab('companies'); setSelectedCompanyId(null); }} onViewRegistry={() => setActiveTab('registry')}
           myCompanies={[...operationalCompanies, ...(financeCompany ? [financeCompany] : [])].map((c: any) => ({ id: c.id, name: c.name, industry_id: c.industry_id, finances: c.finances }))}
-          onOpenCompany={(id) => { setActiveTab('companies'); setSelectedCompanyId(id); }} /></PageShell>}
+          onOpenCompany={(id) => { setActiveTab('companies'); setSelectedCompanyId(id); }}
+          onPickSector={(id) => { setSelectedSector(id); setChosenCapital(sectorMinCapital(id)); setStep(2); setActiveTab('start'); }}
+          onGoTab={(tab) => { setSelectedCompanyId(null); setActiveTab(tab); }} /></PageShell>}
         {activeTab === 'start'     && <PageShell className="py-6"><StartBusinessTab step={step} setStep={setStep} selectedSector={selectedSector} setSelectedSector={setSelectedSector} selectedHQ={selectedHQ} setSelectedHQ={setSelectedHQ} hqOptions={hqOptions} companyNameInput={companyNameInput} setCompanyNameInput={setCompanyNameInput} nameError={nameError} setNameError={setNameError} startError={startError} playerCash={playerCash} company={company} financeCompany={financeCompany} onRegister={handleRegisterCompany} checkName={checkName} chosenCapital={chosenCapital} setChosenCapital={setChosenCapital} selectedStructure={selectedStructure} setSelectedStructure={setSelectedStructure} selectedModel={selectedModel} setSelectedModel={setSelectedModel} isSubmitting={isSubmitting} /></PageShell>}
         
         {activeTab === 'companies' && (
             <div>
               {/* Finance firm selected → Capital Partners desk */}
               {selectedCompanyId && financeCompany && selectedCompanyId === financeCompany.id ? (
+                <div className="page-frame py-5">
                 <CapitalPartnersDeskTab
                   firmId={financeCompany.id}
                   firmName={financeCompany.name}
@@ -855,8 +844,9 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
                   onRefresh={refreshAll}
                   onGoToExchange={() => setActiveTab('exchange')}
                 />
+                </div>
               ) : selectedCompanyId && company ? (
-                <div>
+                <div className="page-frame py-5">
                   {/* Detailed company view could go here, but usually it delegates to ManufacturingDeskTab */}
                   {company.sector === 'manufacturing' || company.sectorId === 'manufacturing' ? (
                     <ManufacturingDeskTab
@@ -890,7 +880,7 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
                 </PageShell>
               ) : (
                 <PageShell className="py-6">
-                  <div className="mt-4 flex flex-col gap-3">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {operationalCompanies.map((c: any) => (
                       <Card
                         key={c.id}
@@ -931,7 +921,7 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
                       </Card>
                     )}
                     {operationalCompanies.length === 0 && !financeCompany && (
-                      <div className="text-zinc-600 text-xs">No companies registered.</div>
+                      <div className="text-[14px] text-ink-dim">You have no companies yet. File one from Start Business.</div>
                     )}
                   </div>
                 </PageShell>
@@ -942,16 +932,16 @@ Use paid research to spot rivals who are Sold Out (opportunity to grab share by 
         
         
         {activeTab === 'analytics' && (
-          company ? (
-            <AnalyticsDashboard companyId={company.id} countryId={(company as any).country_id || company.countryId || 'drennia'} />
+          analyticsCompany ? (
+            <AnalyticsDashboard companyId={analyticsCompany.id} countryId={analyticsCompany.countryId} />
           ) : (
             <PageShell className="py-6">
-              <div className="text-zinc-600 text-xs">Register a company to access market analytics.</div>
+              <div className="text-[14px] text-ink-dim">Register a company to see market analytics.</div>
             </PageShell>
           )
         )}
         {activeTab === 'exchange' && <PageShell className="py-6"><DrennportExchangeTab /></PageShell>}
-        {activeTab === 'banks' && <BanksTab company={company} playerCash={playerCash} onRefresh={refreshAll} />}
+        {activeTab === 'banks' && <div className="page-frame py-5"><BanksTab company={company} playerCash={playerCash} onRefresh={refreshAll} /></div>}
         {activeTab === 'registry'  && <PageShell className="py-6"><RegistryTab key={registryKey} company={company} onRefresh={() => setRegistryKey(k => k + 1)} /></PageShell>}
       </div>
     </div>
@@ -976,155 +966,217 @@ function CompanyFigures({ finances }: { finances: any }) {
   );
 }
 
-function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewContracts, onViewRegistry, myCompanies = [], onOpenCompany }: {
+function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewContracts, onViewRegistry, myCompanies = [], onOpenCompany, onPickSector, onGoTab }: {
   company: Company | null; playerCash: number; netWorth: number;
   onStartBusiness: () => void; onViewContracts: () => void; onViewRegistry: () => void;
   /** Companies the player already owns: owners get "Your business", not the registration pitch. */
   myCompanies?: { id: string; name: string; industry_id?: string; finances?: any }[];
   onOpenCompany?: (id: string) => void;
+  /** Open the filing wizard with this sector already chosen. */
+  onPickSector?: (sectorId: string) => void;
+  onGoTab?: (tab: SubTab) => void;
 }) {
   if (!company && myCompanies.length > 0) {
     const sectorName = (id?: string) => id === 'manufacturing' ? 'Car manufacturing' : id === 'logistics' ? 'Shipping & logistics' : id === 'finance' ? 'Capital partners' : 'Company';
+    const hasFinanceFirm = myCompanies.some(c => c.industry_id === 'finance');
+    const shortcuts: { tab: SubTab; label: string; desc: string; icon: typeof Wallet }[] = [
+      { tab: 'banks', label: 'Banks', desc: 'Borrow to expand; loans repay monthly.', icon: Landmark },
+      { tab: 'exchange', label: 'Exchange', desc: 'Trade shares or raise capital.', icon: TrendingUp },
+      { tab: 'registry', label: 'Public registry', desc: 'Every company in the world.', icon: ScrollText },
+      ...(!hasFinanceFirm ? [{ tab: 'start' as SubTab, label: 'Open a Capital Partners firm', desc: 'Your second slot: a firm that invests in shares.', icon: Building2 }] : []),
+    ];
     return (
-      <div className="max-w-4xl flex flex-col gap-6">
-        <Card pad="lg" accent className="relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-3">
-            <Briefcase size={13} className="text-accent" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Your business</span>
-          </div>
-          <h2 className="font-display text-2xl md:text-3xl font-semibold text-ink text-balance mb-2">
-            {myCompanies.length === 1 ? myCompanies[0].name : `${myCompanies.length} companies`}
-          </h2>
-          <p className="text-[14px] leading-relaxed text-ink-dim max-w-xl mb-6">
-            How your companies did last month. Open one to run it.
-          </p>
-          <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:gap-8">
+        <section className="flex min-w-0 flex-col gap-4" aria-labelledby="your-companies">
+          <SectionHeading icon={Briefcase}><span id="your-companies">Your companies</span></SectionHeading>
+          <div className={`grid grid-cols-1 gap-4 ${myCompanies.length > 1 ? 'xl:grid-cols-2' : ''}`}>
             {myCompanies.map((c, i) => (
-              <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-line bg-raised/50 px-4 py-3">
-                <div className="min-w-0">
-                  <div className="text-[15px] font-semibold text-ink truncate">{c.name}</div>
-                  <div className="text-[12px] text-ink-faint">{sectorName(c.industry_id)}</div>
+              <Card key={c.id} pad="lg" accent={i === 0} className="flex flex-col gap-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="m-0 truncate font-display text-[22px] font-semibold text-ink">{c.name}</h2>
+                    <div className="text-[13px] text-ink-faint">{sectorName(c.industry_id)}</div>
+                  </div>
+                  <Badge variant="green" dot>Active</Badge>
                 </div>
-                {c.finances && <CompanyFigures finances={c.finances} />}
-                <Button variant={i === 0 ? 'primary' : 'secondary'} size="md" iconRight={ArrowRight} onClick={() => onOpenCompany?.(c.id)}>
-                  Open
-                </Button>
-              </div>
+                {c.finances ? <CompanyFigures finances={c.finances} /> : <p className="m-0 text-[13px] text-ink-faint">No month closed yet.</p>}
+                <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-line pt-4">
+                  <Button variant={i === 0 ? 'primary' : 'secondary'} size="md" iconRight={ArrowRight} onClick={() => onOpenCompany?.(c.id)}>
+                    Open {c.industry_id === 'finance' ? 'portfolio' : 'company desk'}
+                  </Button>
+                </div>
+              </Card>
             ))}
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button variant="ghost" size="md" icon={ScrollText} onClick={onViewRegistry}>Browse public registry</Button>
-          </div>
-        </Card>
+        </section>
+
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-16" aria-label="Your position">
+          <Card kicker="Your funds" icon={Wallet} pad="md">
+            <DataRow label="Cash in hand" value={formatMoney(playerCash)} valueVariant="green" />
+            <DataRow label="Net worth" value={formatMoney(netWorth)} valueVariant="amber" border={false} />
+          </Card>
+          <Card kicker="Shortcuts" icon={ArrowRight} pad="md">
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {shortcuts.map(sc => (
+                <li key={sc.tab}>
+                  <button type="button" onClick={() => onGoTab?.(sc.tab)}
+                    className="group flex w-full items-center gap-3 rounded-control border border-line bg-raised/40 px-3.5 py-3 text-left transition-colors hover:border-accent/50">
+                    <sc.icon size={16} className="shrink-0 text-ink-faint group-hover:text-accent" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold text-ink">{sc.label}</span>
+                      <span className="block text-[12px] text-ink-faint">{sc.desc}</span>
+                    </span>
+                    <ArrowRight size={15} className="shrink-0 text-ink-faint group-hover:text-accent" aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </aside>
       </div>
     );
   }
   if (!company) {
+    const cheapestStart = Math.min(...Object.values(SECTOR_MIN_CAPITAL)) + Math.min(...Object.values(FILING_FEES));
+    const openSectors = SECTORS.filter(s => s.available);
     return (
-      <div className="max-w-4xl flex flex-col gap-6">
-        {/* Hero */}
-        <Card pad="lg" accent className="relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-3">
-            <Landmark size={12} className="text-terminal-amber" />
-            <span className="text-[10px] uppercase tracking-[0.25em] text-terminal-amber">
-              Drennia Commercial Registry
-            </span>
-          </div>
-          <h2 className="font-serif text-2xl md:text-3xl font-bold text-zinc-100 text-balance mb-2">
-            The registry is open. Build your enterprise.
-          </h2>
-          <p className="text-[13px] leading-relaxed text-zinc-400 max-w-xl mb-6">
-            Register a company with a minimum of <span className="text-terminal-amber font-mono font-semibold">$50,000</span> starting
-            capital — no maximum. Choose your sector, headquarters, and legal structure, then start winning contracts.
-          </p>
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button variant="primary" size="lg" iconRight={ArrowRight} onClick={onStartBusiness}>
-              Start a Business
-            </Button>
-            <Button variant="ghost" size="lg" icon={ScrollText} onClick={onViewRegistry}>
-              Browse Public Registry
-            </Button>
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:gap-8">
+        <div className="flex min-w-0 flex-col gap-8">
+          {/* Hero */}
+          <Card pad="lg" accent className="relative overflow-hidden">
+            <div className="mb-3 flex items-center gap-2">
+              <Landmark size={14} className="text-accent" aria-hidden />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Commercial registry</span>
+            </div>
+            <h2 className="mb-3 font-display text-[26px] font-semibold leading-tight text-ink text-balance md:text-[34px]">
+              The registry is open. Build your enterprise.
+            </h2>
+            <p className="mb-6 max-w-[62ch] text-[15px] leading-relaxed text-ink-dim">
+              Choose a sector, a head office and a legal structure, commit your starting capital, and your company opens
+              this month. There is no maximum: invest as much of your cash as you like.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" size="lg" iconRight={ArrowRight} onClick={onStartBusiness}>
+                Start a business
+              </Button>
+              <Button variant="ghost" size="lg" icon={ScrollText} onClick={onViewRegistry}>
+                Browse the public registry
+              </Button>
+            </div>
+            <dl className="mt-7 grid grid-cols-1 gap-4 border-t border-line pt-5 sm:grid-cols-3">
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Cheapest start</dt>
+                <dd className="m-0 mt-1 font-mono text-[20px] font-semibold text-ink">{formatMoney(cheapestStart)}</dd>
+                <dd className="m-0 text-[12px] text-ink-faint">capital + filing fee</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Car maker from</dt>
+                <dd className="m-0 mt-1 font-mono text-[20px] font-semibold text-ink">{formatMoney(SECTOR_MIN_CAPITAL.manufacturing)}</dd>
+                <dd className="m-0 text-[12px] text-ink-faint">starting capital</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Sectors open</dt>
+                <dd className="m-0 mt-1 font-mono text-[20px] font-semibold text-ink">{openSectors.length} of {SECTORS.length}</dd>
+                <dd className="m-0 text-[12px] text-ink-faint">more open later</dd>
+              </div>
+            </dl>
+          </Card>
 
-        {/* How it works */}
-        <div>
-          <SectionHeading icon={FileText}>How It Works</SectionHeading>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { step: '01', title: 'Register', desc: 'Pick a sector, headquarters state, and legal structure. File with the registry and commit your starting capital.', icon: Building2 },
-              { step: '02', title: 'Operate', desc: 'Win contracts, hire staff, buy vehicles and facilities. Manage cash flow month to month.', icon: Briefcase },
-              { step: '03', title: 'Grow', desc: 'Build reputation and reliability. Scale toward the Drennport Exchange and public markets.', icon: TrendingUp },
-            ].map(item => (
-              <Card key={item.step} pad="md" hover className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <item.icon size={16} className="text-terminal-amber" />
-                  <span className="text-[10px] font-mono text-zinc-600 tracking-[0.2em]">{item.step}</span>
-                </div>
-                <h3 className="text-[13px] font-semibold text-zinc-100">{item.title}</h3>
-                <p className="text-[11px] leading-relaxed text-zinc-500">{item.desc}</p>
-              </Card>
-            ))}
-          </div>
+          {/* How it works */}
+          <section>
+            <SectionHeading icon={FileText}>How it works</SectionHeading>
+            <ol className="m-0 grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-3">
+              {[
+                { step: '1', title: 'Register', desc: 'Pick a sector, a head office in your nation and a legal structure. File with the registry and commit your starting capital.', icon: Building2 },
+                { step: '2', title: 'Operate', desc: 'A car maker leases a factory, designs cars, hires staff and sells in your nation’s car market. Every month closes with real results.', icon: Briefcase },
+                { step: '3', title: 'Grow', desc: 'Build your brand and book value, borrow from the banks to expand, and work toward a listing on the exchange.', icon: TrendingUp },
+              ].map(item => (
+                <li key={item.step}>
+                  <Card pad="md" className="flex h-full flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/10 font-mono text-[13px] font-semibold text-accent" aria-hidden>{item.step}</span>
+                      <h3 className="m-0 text-[15px] font-semibold text-ink">{item.title}</h3>
+                      <item.icon size={16} className="ml-auto text-ink-faint" aria-hidden />
+                    </div>
+                    <p className="m-0 text-[13px] leading-relaxed text-ink-dim">{item.desc}</p>
+                  </Card>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {/* Legal structures */}
+          <section>
+            <SectionHeading icon={Scale}>Legal structures</SectionHeading>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {LEGAL_STRUCTURES.map(s => (
+                <Card key={s.id} pad="md" className="flex flex-col gap-1.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="m-0 text-[15px] font-semibold text-ink">{s.label}</h3>
+                    <span className="shrink-0 font-mono text-[13px] font-semibold text-accent">{formatMoney(FILING_FEES[s.id])}</span>
+                  </div>
+                  <p className="m-0 text-[13px] leading-relaxed text-ink-dim">{s.desc}</p>
+                </Card>
+              ))}
+            </div>
+            <p className="mt-3 text-[12px] text-ink-faint">The fee is a one-off filing charge. A Capital Partners firm is always a private company.</p>
+          </section>
         </div>
 
-        {/* Legal structures */}
-        <div>
-          <SectionHeading icon={Scale} stamp="ALL ACTIVE">Legal Structures</SectionHeading>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { name: 'Sole Trader', fee: '$500', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost.' },
-              { name: 'Private Company', fee: '$5,000', desc: 'Separate legal entity. Add partners and issue private shares.' },
-              { name: 'Corporation', fee: '$50,000', desc: 'Full liability protection. Required for public trading.' },
-            ].map(s => (
-              <Card key={s.name} pad="md" hover className="flex flex-col gap-1.5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="text-[13px] font-semibold text-zinc-100">{s.name}</h3>
-                  <span className="text-[11px] font-mono font-semibold text-terminal-amber shrink-0">{s.fee}</span>
-                </div>
-                <p className="text-[11px] leading-relaxed text-zinc-500">{s.desc}</p>
-                <span className="mt-1 text-[10px] uppercase tracking-[0.12em] text-terminal-green">● Available</span>
-              </Card>
-            ))}
-          </div>
-        </div>
+        {/* Right rail */}
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-16" aria-label="Your position">
+          <Card kicker="Your funds" icon={Wallet} pad="md">
+            <DataRow label="Cash in hand" value={formatMoney(playerCash)} valueVariant="green" />
+            <DataRow label="Net worth" value={formatMoney(netWorth)} valueVariant="amber" />
+            <DataRow label="Left after the cheapest start" value={formatMoney(playerCash - cheapestStart)} border={false} />
+            {playerCash < cheapestStart && (
+              <p className="mt-3 text-[13px] text-warn">You need {formatMoney(cheapestStart - playerCash)} more to register a company.</p>
+            )}
+          </Card>
+          <Card kicker="Open sectors" icon={Building2} pad="md">
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {openSectors.map(sct => {
+                const min = sectorMinCapital(sct.id);
+                return (
+                  <li key={sct.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPickSector?.(sct.id)}
+                      className="group flex w-full items-center justify-between gap-3 rounded-control border border-line bg-raised/40 px-3.5 py-3 text-left transition-colors hover:border-accent/50"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-[14px] font-semibold text-ink">{sct.id === 'Finance & Services' ? 'Capital Partners firm' : 'Car manufacturer'}</span>
+                        <span className="block text-[12px] text-ink-faint">From {formatMoney(min)} capital</span>
+                      </span>
+                      <ArrowRight size={15} className="shrink-0 text-ink-faint transition-colors group-hover:text-accent" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-3 text-[12px] text-ink-faint">
+              {SECTORS.filter(x => !x.available).map(x => x.id).join(', ')} open later.
+            </p>
+          </Card>
+        </aside>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl flex flex-col gap-6">
-      {/* Key stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Company Cash"
-          value={formatMoney(company.companyCash ?? 0)}
-          valueColor="green"
-          trend={Number(company.companyCash || 0) > 0 ? 'up' : 'flat'}
-        />
-        <StatCard
-          label="Debt"
-          value={formatMoney(company.debt ?? 0)}
-          valueColor={(company.debt ?? 0) > 0 ? 'red' : 'white'}
-          trend={(company.debt ?? 0) > 0 ? 'down' : 'flat'}
-        />
-        <StatCard
-          label="Net Worth (Total)"
-          value={formatMoney(netWorth)}
-          valueColor="amber"
-          trend="up"
-        />
-        <StatCard
-          label="Reputation"
-          value={company.reputation}
-          valueColor="white"
-        />
+    <div className="flex flex-col gap-6">
+      {/* Key stats (real numbers only: no trend arrows without a measured change) */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Company cash" value={formatMoney(company.companyCash ?? 0)} valueColor="green" />
+        <StatCard label="Debt" value={formatMoney(company.debt ?? 0)} valueColor={(company.debt ?? 0) > 0 ? 'red' : 'white'} />
+        <StatCard label="Net worth (total)" value={formatMoney(netWorth)} valueColor="amber" />
+        <StatCard label="Reputation" value={company.reputation} valueColor="white" />
       </div>
 
-      {/* Company file + financial position */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Company file + financial position + next steps */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Card
-          kicker="Company File"
+          kicker="Company file"
           icon={Building2}
           title={company.name}
           headerSlot={<Badge variant="green" dot>{company.status}</Badge>}
@@ -1132,30 +1184,29 @@ function OverviewTab({ company, playerCash, netWorth, onStartBusiness, onViewCon
           <DataRow label="Structure" value={getLegalStructureName(company.legalStructure)} />
           <DataRow label="Sector" value={getSectorName(company.sectorId) || getSectorName(company.sector) || 'N/A'} />
           {company.subsector && <DataRow label="Subsector" value={getSubsectorName(company.subsector) || 'N/A'} />}
-          <DataRow label="HQ State" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
-          {company.operatingModel && !company.subsector && <DataRow label="Operating Model" value={company.operatingModel} valueVariant="amber" />}
+          <DataRow label="Head office" value={getStateName(company.headquartersStateId) || getStateName(company.state) || 'N/A'} />
+          {company.operatingModel && !company.subsector && <DataRow label="Operating model" value={company.operatingModel} valueVariant="amber" />}
           <DataRow label="Reputation" value={company.reputation} valueVariant="amber" />
           <DataRow label="Reliability" value={company.reliability} border={false} />
         </Card>
 
-        <div className="flex flex-col gap-4">
-          <Card kicker="Ledger" icon={Wallet} title="Financial Position">
-            <DataRow label="Company Cash" value={formatMoney(company.companyCash ?? 0)} valueVariant="green" />
-            <DataRow label="Debt" value={formatMoney(company.debt ?? 0)} valueVariant={(company.debt ?? 0) > 0 ? 'red' : 'muted'} />
-            <DataRow label="Net Worth (total)" value={formatMoney(netWorth)} valueVariant="amber" border={false} />
-          </Card>
+        <Card kicker="Ledger" icon={Wallet} title="Financial position">
+          <DataRow label="Company cash" value={formatMoney(company.companyCash ?? 0)} valueVariant="green" />
+          <DataRow label="Debt" value={formatMoney(company.debt ?? 0)} valueVariant={(company.debt ?? 0) > 0 ? 'red' : 'muted'} />
+          <DataRow label="Your cash in hand" value={formatMoney(playerCash)} />
+          <DataRow label="Net worth (total)" value={formatMoney(netWorth)} valueVariant="amber" border={false} />
+        </Card>
 
-          <Card kicker="Quick Actions" icon={ArrowRight} title="Where to next?">
-            <div className="flex flex-col gap-2">
-              <Button variant="secondary" fullWidth icon={Briefcase} iconRight={ArrowRight} onClick={onViewContracts}>
-                Manage Company
-              </Button>
-              <Button variant="ghost" fullWidth icon={ScrollText} onClick={onViewRegistry}>
-                Public Registry
-              </Button>
-            </div>
-          </Card>
-        </div>
+        <Card kicker="Next" icon={ArrowRight} title="Where to next?" className="lg:col-span-2 xl:col-span-1">
+          <div className="flex flex-col gap-2">
+            <Button variant="primary" fullWidth icon={Briefcase} iconRight={ArrowRight} onClick={onViewContracts}>
+              Run {company.name}
+            </Button>
+            <Button variant="ghost" fullWidth icon={ScrollText} onClick={onViewRegistry}>
+              Public registry
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   );
@@ -1168,18 +1219,6 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   const isLogistics = selectedSector === 'Shipping & Logistics';
   const isFinance   = selectedSector === 'Finance & Services';
 
-  // Player already has BOTH slots filled — fully block
-  if (company && financeCompany) {
-    return (
-      <div className="max-w-[540px] rounded-md border border-zinc-800 bg-zinc-900/60 p-5">
-        <div className="text-[11px] uppercase tracking-[0.15em] text-terminal-amber font-bold mb-4">Both Company Slots Filled</div>
-        <p className="text-[13px] text-zinc-500 leading-relaxed m-0">
-          You have <strong className="text-zinc-100">{company.name}</strong> (operational) and <strong className="text-zinc-100">{financeCompany.name}</strong> (Capital Partners). No more company slots are available in the closed alpha.
-        </p>
-      </div>
-    );
-  }
-
   // Player has an operational company but no finance firm yet — Finance slot is available
   const financeSlotOnly = !!company && !financeCompany;
 
@@ -1187,57 +1226,86 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   useEffect(() => {
     if (financeSlotOnly && selectedSector !== 'Finance & Services') {
       setSelectedSector('Finance & Services');
-      setChosenCapital(50000);
+      setChosenCapital(SECTOR_MIN_CAPITAL.finance);
     }
   }, [financeSlotOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Player already has BOTH slots filled — fully block. This return must stay below every
+  // hook in this component: returning before a hook makes React crash when the slots change.
+  if (company && financeCompany) {
+    return (
+      <Card pad="lg" className="mx-auto w-full max-w-[640px]">
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Both company slots filled</div>
+        <p className="m-0 text-[14px] leading-relaxed text-ink-dim">
+          You have <strong className="text-zinc-100">{company.name}</strong> (operational) and <strong className="text-zinc-100">{financeCompany.name}</strong> (Capital Partners). No more company slots are available in the closed alpha.
+        </p>
+      </Card>
+    );
+  }
+
   const STEP_LABELS = isFinance
-    ? ['Sector', 'Headquarters', 'Company Name', 'Starting Capital', 'Confirm Filing']
-    : ['Sector', 'Headquarters', 'Structure', 'Company Name', 'Starting Capital', isLogistics ? 'Operating Model' : 'Subsector', 'Confirm Filing'];
-  const FILING_FEE = 5000; // Finance firms are always private-company: $5,000 filing fee
-  const effectiveFee = isFinance ? FILING_FEE : (selectedStructure === 'sole-trader' ? 500 : selectedStructure === 'private-company' ? 5000 : 50000);
+    ? ['Sector', 'Head office', 'Name', 'Capital', 'Confirm']
+    : ['Sector', 'Head office', 'Structure', 'Name', 'Capital', isLogistics ? 'Model' : 'Subsector', 'Confirm'];
+  // Finance firms are always private companies, so they always pay that fee.
+  const effectiveFee = FILING_FEES[isFinance ? 'private-company' : selectedStructure] ?? FILING_FEES['sole-trader'];
+  const minCapital = sectorMinCapital(selectedSector);
+  // The step numbers the wizard actually visits (a finance firm skips structure and subsector).
+  const STEP_IDS = isFinance ? [1, 2, 4, 5, 7] : [1, 2, 3, 4, 5, 6, 7];
+  const stepPos = Math.max(0, STEP_IDS.indexOf(step));
+  const stepStamp = `Step ${stepPos + 1} of ${STEP_IDS.length}`;
+  const prevStep = STEP_IDS[Math.max(0, stepPos - 1)];
   const total = chosenCapital + effectiveFee;
   const canAfford = playerCash >= total;
   const totalCost = effectiveFee + chosenCapital;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:gap-10 h-full items-start">
-      <div className="flex flex-col overflow-y-auto">
-        <div className="max-w-[620px]">
-          {/* Stepper */}
-      <div className="flex mb-7 border-b border-zinc-800">
-        {STEP_LABELS.map((label, i) => {
-          const stepNum = i + 1;
-          const done = step > stepNum;
-          const active = step === stepNum;
-          return (
-            <div key={label} className={`flex-1 px-1 pt-2 pb-2.5 text-center border-b-2 -mb-px transition-colors ${active ? 'border-terminal-amber' : 'border-transparent'}`}>
-              <div className={`text-[10px] uppercase tracking-[0.08em] ${done ? 'text-terminal-green' : active ? 'text-terminal-amber' : 'text-zinc-600'}`}>
-                {done ? '✓' : stepNum}. {label}
-              </div>
+    <div className="grid w-full grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:gap-8">
+      <div className="flex min-w-0 flex-col gap-5">
+          {/* Stepper: full on wide screens, a progress bar on phones */}
+          <div className="md:hidden">
+            <div className="mb-2 flex items-baseline justify-between text-[13px]">
+              <span className="font-semibold text-ink">{STEP_LABELS[stepPos]}</span>
+              <span className="text-ink-faint">{stepStamp}</span>
             </div>
-          );
-        })}
-      </div>
+            <div className="h-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-label="Filing progress" aria-valuemin={1} aria-valuemax={STEP_IDS.length} aria-valuenow={stepPos + 1}>
+              <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${((stepPos + 1) / STEP_IDS.length) * 100}%` }} />
+            </div>
+          </div>
+          <ol className="m-0 hidden list-none items-center gap-2 p-0 md:flex" aria-label="Filing steps">
+            {STEP_LABELS.map((label, i) => {
+              const done = i < stepPos;
+              const active = i === stepPos;
+              return (
+                <li key={label} className="flex min-w-0 flex-1 items-center gap-2" aria-current={active ? 'step' : undefined}>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border font-mono text-[12px] font-semibold ${
+                    done ? 'border-good/50 bg-good/15 text-good' : active ? 'border-accent bg-accent text-[#17130A]' : 'border-line-strong text-ink-faint'
+                  }`}>{done ? '✓' : i + 1}</span>
+                  <span className={`truncate text-[12px] font-medium ${active ? 'text-ink' : done ? 'text-ink-dim' : 'text-ink-faint'}`}>{label}</span>
+                  {i < STEP_LABELS.length - 1 && <span className="hidden h-px min-w-[12px] flex-1 bg-line xl:block" aria-hidden />}
+                </li>
+              );
+            })}
+          </ol>
+          <Card pad="lg">
 
       {/* Step 1 — Sector */}
       {step === 1 && (
         <div>
-          <SectionHeader stamp="STEP 1 OF 7">Select Your Sector</SectionHeader>
+          <SectionHeader stamp={stepStamp}>Select Your Sector</SectionHeader>
           {financeSlotOnly ? (
             <div className="mb-4 rounded-md border border-terminal-amber/40 bg-terminal-amber/5 px-4 py-3">
               <div className="text-[10px] text-terminal-amber uppercase tracking-[0.15em] font-bold mb-1">Second Slot — Finance Only</div>
-              <p className="text-[11px] text-zinc-400 leading-relaxed m-0">
+              <p className="m-0 text-[13px] leading-relaxed text-ink-dim">
                 You already operate <strong className="text-zinc-100">{company.name}</strong>. Your second slot is reserved for a <strong className="text-zinc-100">Capital Partners firm</strong>. Only Finance &amp; Services is available.
               </p>
             </div>
           ) : (
-            <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
+            <p className="mb-5 text-[14px] leading-relaxed text-ink-dim">
               <strong className="text-terminal-amber">Manufacturing</strong> (a car maker) and <strong className="text-terminal-amber">Finance &amp; Services</strong> (a Capital Partners firm that invests in other companies) are open. The other sectors are shown locked until they open.
             </p>
           )}
-          <div className="flex flex-col gap-2 mb-6">
-            {SECTORS.map(s => {
+          <div className="mb-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {[...SECTORS].sort((x, y) => Number(y.available) - Number(x.available)).map(s => {
               // When the player only has the finance slot left, lock everything except Finance & Services
               const locked = financeSlotOnly ? s.id !== 'Finance & Services' : !s.available;
               return (
@@ -1247,9 +1315,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                     if (locked) return;
                     setSelectedSector(s.id);
                     // Reset capital to the correct minimum for this sector
-                    if (s.id === 'Finance & Services') setChosenCapital(50000);
-                    else if (s.id === 'Manufacturing') setChosenCapital(500000);
-                    else setChosenCapital(50000);
+                    setChosenCapital(sectorMinCapital(s.id));
                   }}
                   disabled={locked}
                   className={`rounded-md border px-4 py-3.5 text-left transition-colors ${
@@ -1268,16 +1334,16 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               );
             })}
           </div>
-          <GoldButton onClick={() => setStep(2)} disabled={!selectedSector}>Next: Headquarters →</GoldButton>
+          <GoldButton onClick={() => setStep(2)} disabled={!selectedSector}>Next: Head office →</GoldButton>
         </div>
       )}
 
       {/* Step 2 — HQ */}
       {step === 2 && (
         <div>
-          <SectionHeader stamp="STEP 2 OF 7">Headquarters Location</SectionHeader>
-          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">Your company opens in your own nation and sells in its car market. Pick the region for your head office.</p>
-          <div className="flex flex-col gap-2.5 mb-6">
+          <SectionHeader stamp={stepStamp}>Headquarters Location</SectionHeader>
+          <p className="mb-5 text-[14px] leading-relaxed text-ink-dim">Your company opens in your own nation and sells in its car market. Pick the region for your head office.</p>
+          <div className="mb-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {hqOptions.length === 0 && <p className="text-xs text-ink-dim">Loading your nation's regions…</p>}
             {hqOptions.map((hq: HqOption) => (
               <button
@@ -1292,17 +1358,17 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <span className="text-sm font-bold text-zinc-100">{hq.city}</span>
-                    <span className="text-[10px] text-zinc-500 ml-2.5">{hq.tagline}</span>
+                    <span className="ml-2.5 text-[12px] text-ink-faint">{hq.tagline}</span>
                   </div>
-                  {selectedHQ === hq.id && <span className="text-[10px] font-mono text-terminal-amber">✓</span>}
+                  {selectedHQ === hq.id && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">Selected</span>}
                 </div>
-                <div className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">{hq.desc}</div>
+                <div className="mt-1.5 text-[13px] leading-relaxed text-ink-dim">{hq.desc}</div>
               </button>
             ))}
           </div>
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(1)}>← Back</GhostButton>
-            <GoldButton onClick={() => setStep(isFinance ? 4 : 3)} disabled={!selectedHQ}>Next: {isFinance ? 'Company Name' : 'Structure'} →</GoldButton>
+            <GhostButton onClick={() => setStep(prevStep)}>← Back</GhostButton>
+            <GoldButton onClick={() => setStep(isFinance ? 4 : 3)} disabled={!selectedHQ}>Next: {isFinance ? 'Company name' : 'Structure'} →</GoldButton>
           </div>
         </div>
       )}
@@ -1310,13 +1376,9 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {/* Step 3 — Structure (skipped for Finance) */}
       {step === 3 && !isFinance && (
         <div>
-          <SectionHeader stamp="STEP 3 OF 7">Legal Structure</SectionHeader>
-          <div className="flex flex-col gap-2 mb-6">
-            {[
-              { id: 'sole-trader', label: 'Sole Trader', desc: 'Simplest structure. Full ownership, full liability, lowest filing cost ($500).' },
-              { id: 'private-company', label: 'Private Company', desc: 'Separate legal entity. Can add partners and issue shares ($5,000).' },
-              { id: 'public-corporation', label: 'Corporation', desc: 'Full liability protection. Required for public trading ($50,000).' },
-            ].map(s => (
+          <SectionHeader stamp={stepStamp}>Legal Structure</SectionHeader>
+          <div className="mb-6 grid grid-cols-1 gap-2.5 md:grid-cols-3">
+            {LEGAL_STRUCTURES.map(s => (
               <button
                 key={s.label}
                 onClick={() => setSelectedStructure(s.id)}
@@ -1327,15 +1389,15 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
                 }`}
               >
                 <div className="flex justify-between gap-2">
-                  <span className="text-[13px] font-semibold text-zinc-100">{s.label}</span>
-                  {selectedStructure === s.id && <span className="text-[10px] font-mono text-terminal-amber">ACTIVE ✓</span>}
+                  <span className="text-[14px] font-semibold text-ink">{s.label}</span>
+                  <span className="font-mono text-[13px] font-semibold text-accent">{formatMoney(FILING_FEES[s.id])}</span>
                 </div>
-                <div className="text-[11px] text-zinc-500 mt-1">{s.desc}</div>
+                <div className="mt-1 text-[13px] text-ink-dim">{s.desc}</div>
               </button>
             ))}
           </div>
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(isFinance ? 2 : 3)}>← Back</GhostButton>
+            <GhostButton onClick={() => setStep(prevStep)}>← Back</GhostButton>
             <GoldButton onClick={() => setStep(4)} disabled={!selectedStructure}>Next: Name →</GoldButton>
           </div>
         </div>
@@ -1344,8 +1406,8 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {/* Step 4 — Name */}
       {step === 4 && (
         <div>
-          <SectionHeader stamp="STEP 4 OF 7">Company Name</SectionHeader>
-          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
+          <SectionHeader stamp={stepStamp}>Company Name</SectionHeader>
+          <p className="mb-5 text-[14px] leading-relaxed text-ink-dim">
             This becomes your permanent business identity in Drennia. Names are public and cannot be reused.
           </p>
           <div className="mb-5">
@@ -1362,7 +1424,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             {nameError && <div className="text-[11px] text-terminal-red mt-1.5">{nameError}</div>}
           </div>
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(3)}>← Back</GhostButton>
+            <GhostButton onClick={() => setStep(prevStep)}>← Back</GhostButton>
             <GoldButton onClick={() => { if (checkName()) setStep(5); }}>Check & Continue →</GoldButton>
           </div>
         </div>
@@ -1371,7 +1433,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {/* Step 5 — Starting Capital */}
       {step === 5 && (
         <div>
-          <SectionHeader stamp="STEP 5 OF 7">Starting Capital</SectionHeader>
+          <SectionHeader stamp={stepStamp}>Starting Capital</SectionHeader>
           <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-5 mb-4">
             <FieldRow label="Company Name" value={companyNameInput} />
             <FieldRow label="Sector" value={selectedSector} />
@@ -1380,20 +1442,19 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
           </div>
           <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
             <SectionHeader>Starting Capital</SectionHeader>
-            <p className="text-xs text-zinc-500 leading-relaxed mb-4">
-              Minimum: <strong className="text-terminal-amber">{formatMoney(isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000)}</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({isFinance ? 'Private Company' : getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(effectiveFee)}</strong>).
+            <p className="mb-4 text-[14px] leading-relaxed text-ink-dim">
+              Minimum: <strong className="text-terminal-amber">{formatMoney(minCapital)}</strong>. No maximum — invest as much as your Cash in Hand allows, minus the filing fee ({isFinance ? 'Private Company' : getLegalStructureName(selectedStructure)} fee: <strong className="text-terminal-red">{formatMoney(effectiveFee)}</strong>).
             </p>
             <div className="mb-4">
               <Label>Company Starting Capital ($)</Label>
               <input
                 type="number"
-                min={isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000}
+                min={minCapital}
                 step={10000}
                 value={chosenCapital}
                 onChange={e => {
-                  const minCap = isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000;
-                  const v = parseInt(e.target.value) || minCap;
-                  setChosenCapital(Math.max(minCap, v));
+                  const v = parseInt(e.target.value) || minCapital;
+                  setChosenCapital(Math.max(minCapital, v));
                 }}
                 className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-base font-mono font-bold text-terminal-green outline-none box-border focus:border-terminal-amber/60 transition-colors"
               />
@@ -1415,11 +1476,11 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             )}
           </div>
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(isFinance ? 3 : 4)}>← Back</GhostButton>
+            <GhostButton onClick={() => setStep(prevStep)}>← Back</GhostButton>
             <GoldButton
               onClick={() => setStep(isFinance ? 7 : 6)}
-              disabled={!canAfford || chosenCapital < (isFinance ? 50000 : selectedSector === 'Manufacturing' ? 500000 : 50000)}
-            >{isFinance ? 'Next: Confirm Filing →' : 'Next: Operating Model →'}</GoldButton>
+              disabled={!canAfford || chosenCapital < minCapital}
+            >{isFinance ? 'Next: Confirm filing →' : isLogistics ? 'Next: Operating model →' : 'Next: Subsector →'}</GoldButton>
           </div>
         </div>
       )}
@@ -1427,13 +1488,13 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {/* Step 6 — Operating Model / Subsector (skipped for Finance) */}
       {step === 6 && !isFinance && (
         <div>
-          <SectionHeader stamp="STEP 6 OF 7">{isLogistics ? 'Select Operating Model' : 'Select Manufacturing Subsector'}</SectionHeader>
-          <p className="text-xs text-zinc-500 mb-5 leading-relaxed">
+          <SectionHeader stamp={stepStamp}>{isLogistics ? 'Select Operating Model' : 'Select Manufacturing Subsector'}</SectionHeader>
+          <p className="mb-5 text-[14px] leading-relaxed text-ink-dim">
             {isLogistics 
               ? "Choose your company's initial logistics operating model. This shapes your career trajectory, suggested contracts, and unlocks tailored equipment."
               : "Choose your primary manufacturing subsector. This unlocks specific blueprints, materials, and facility types."}
           </p>
-          <div className="flex flex-col gap-2.5 mb-6">
+          <div className="mb-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {isLogistics ? [
               { id: 'Local Courier Operator', title: 'Local Courier Operator', desc: 'Small local delivery, office errands, shop movement. Best for Drennport or Greenmere. Good with Used Delivery Van.', available: true },
               { id: 'Port Shuttle Operator', title: 'Port Shuttle Operator', desc: 'Dock, warehouse, and container-adjacent movement. Best for Westport. Good with Used Delivery Van or Box Truck.', available: true },
@@ -1452,10 +1513,10 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[13px] font-semibold text-zinc-100">{model.title}</span>
-                  {selectedModel === model.id && <span className="text-[10px] font-mono text-terminal-amber">SELECTED ✓</span>}
-                  {!model.available && <span className="text-[10px] font-mono text-zinc-600">COMING SOON</span>}
+                  {selectedModel === model.id && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">Selected</span>}
+                  {!model.available && <span className="inline-flex items-center gap-1 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-ink-faint"><Lock size={10} />Later</span>}
                 </div>
-                <div className="text-[11px] text-zinc-500 mt-1 leading-normal">{model.desc}</div>
+                <div className="mt-1 text-[13px] leading-normal text-ink-dim">{model.desc}</div>
               </button>
             )) : [
               { id: 'automobile-manufacturing', title: 'Automobile Manufacturing', desc: 'Design and mass-produce consumer vehicles, trucks, and specialist transports.', available: true },
@@ -1479,16 +1540,16 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[13px] font-semibold text-zinc-100">{model.title}</span>
-                  {selectedModel === model.id && <span className="text-[10px] font-mono text-terminal-amber">SELECTED ✓</span>}
-                  {!model.available && <span className="text-[10px] font-mono text-zinc-600">COMING SOON</span>}
+                  {selectedModel === model.id && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">Selected</span>}
+                  {!model.available && <span className="inline-flex items-center gap-1 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-ink-faint"><Lock size={10} />Later</span>}
                 </div>
-                <div className="text-[11px] text-zinc-500 mt-1 leading-normal">{model.desc}</div>
+                <div className="mt-1 text-[13px] leading-normal text-ink-dim">{model.desc}</div>
               </button>
             ))}
           </div>
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(5)}>← Back</GhostButton>
-            <GoldButton onClick={() => setStep(7)} disabled={!selectedModel}>Next: Confirm Filing →</GoldButton>
+            <GhostButton onClick={() => setStep(prevStep)}>← Back</GhostButton>
+            <GoldButton onClick={() => setStep(7)} disabled={!selectedModel}>Next: Confirm filing →</GoldButton>
           </div>
         </div>
       )}
@@ -1496,7 +1557,7 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       {/* Step 7 — Confirm */}
       {step === 7 && (
         <div>
-          <SectionHeader stamp="STEP 7 OF 7">Confirm Filing</SectionHeader>
+          <SectionHeader stamp={stepStamp}>Confirm Filing</SectionHeader>
           <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-5 mb-5">
             <div className="text-[10px] uppercase tracking-[0.15em] text-terminal-amber mb-4">
               ◈ Drennia Commercial Registry — Filing Confirmation
@@ -1514,49 +1575,53 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
             <FieldRow label="Filing Fee" value={formatMoney(effectiveFee)} valueColor="#D9625A" />
             <FieldRow label="Total Deducted from Cash" value={formatMoney(total)} valueColor="#f5a623" />
           </div>
-          <p className="text-[11px] text-zinc-500 mb-5 leading-relaxed">
+          <p className="mb-5 text-[13px] leading-relaxed text-ink-dim">
             By confirming, this filing becomes a permanent public record in the Drennia Commercial Registry.
           </p>
           {startError && <div className="text-[11px] text-terminal-red mb-4 rounded-md border border-terminal-red/50 bg-terminal-red/10 p-2.5">{startError}</div>}
           <div className="flex gap-2.5">
-            <GhostButton onClick={() => setStep(isFinance ? 5 : 6)} disabled={isSubmitting}>← Back</GhostButton>
+            <GhostButton onClick={() => setStep(prevStep)} disabled={isSubmitting}>← Back</GhostButton>
             <GoldButton onClick={onRegister} disabled={isSubmitting}>
               {isSubmitting ? 'Registering...' : '◈ Confirm Filing & Register'}
             </GoldButton>
           </div>
         </div>
       )}
-        </div>
+          </Card>
       </div>
 
-      {/* Right Rail - Filing Summary */}
-      <div className="lg:border-l border-t lg:border-t-0 border-zinc-800 lg:pl-6 pt-6 lg:pt-0 flex flex-col gap-1">
-        <div className="text-xs uppercase tracking-[0.15em] text-terminal-amber border-b border-zinc-800 pb-2 mb-3">
-          Filing Summary
+      {/* Right rail: the filing so far */}
+      <aside className="lg:sticky lg:top-16" aria-label="Filing summary">
+      <Card pad="md">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+          Filing summary
         </div>
-        <FieldRow label="Company Name" value={companyNameInput || 'TBD'} />
+        <FieldRow label="Company Name" value={companyNameInput || '—'} />
         <FieldRow label="Legal Structure" value={isFinance ? 'Private Company' : selectedStructure === 'sole-trader' ? 'Sole Trader' : selectedStructure === 'private-company' ? 'Private Company' : 'Corporation'} />
 
-        <FieldRow label="Sector" value={selectedSector || 'TBD'} />
-        <FieldRow label="Headquarters" value={hqOptions.find((h: HqOption) => h.id === selectedHQ)?.city || selectedHQ || 'TBD'} />
+        <FieldRow label="Sector" value={selectedSector || '—'} />
+        <FieldRow label="Headquarters" value={hqOptions.find((h: HqOption) => h.id === selectedHQ)?.city || selectedHQ || '—'} />
         {!isFinance && (
-          <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : 'TBD'} valueColor="#f5a623" />
+          <FieldRow label={isLogistics ? "Operating Model" : "Subsector"} value={selectedModel ? (isLogistics ? selectedModel : getSubsectorName(selectedModel)) : '—'} />
         )}
         <FieldRow label="Capital Filed" value={formatMoney(chosenCapital)} valueColor="#4FB286" />
-        <FieldRow label="Total Cost" value={formatMoney(totalCost)} valueColor="#D9625A" />
-        <FieldRow label="Remaining Cash" value={formatMoney(playerCash - totalCost)} />
-        {isFinance ? (
-          <div className="mt-5 rounded-md border border-dashed border-terminal-amber/60 bg-terminal-amber/5 p-4">
-            <div className="text-[10px] text-terminal-amber uppercase tracking-[0.08em] mb-2">Next Steps</div>
-            <div className="text-[11px] text-zinc-200 leading-normal">After filing, fund your firm via <strong>Fund Firm</strong>, then buy shares on the <strong>DRX Bourse</strong> to start earning dividends each arc.</div>
-          </div>
-        ) : (
-          <div className="mt-5 rounded-md border border-dashed border-terminal-green/60 bg-terminal-green/5 p-4">
-            <div className="text-[10px] text-terminal-green uppercase tracking-[0.08em] mb-2">Recommendation</div>
-            <div className="text-[11px] text-zinc-200 leading-normal">After filing, your first step should be to visit the Procurement desk to acquire your first operational asset: {selectedModel === 'Port Shuttle Operator' || selectedModel === 'Local Courier Operator' ? 'Used Delivery Van' : 'Box Truck'}.</div>
+        <FieldRow label="Filing fee" value={formatMoney(effectiveFee)} />
+        <FieldRow label="Total cost" value={formatMoney(totalCost)} />
+        <FieldRow label="Cash left after filing" value={formatMoney(playerCash - totalCost)} valueColor={playerCash - totalCost < 0 ? '#D9625A' : undefined} />
+        {selectedSector && (
+          <div className="mt-4 rounded-control border border-line bg-raised/50 p-3.5">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">After filing</div>
+            <p className="m-0 text-[13px] leading-relaxed text-ink-dim">
+              {isFinance
+                ? <>Fund your firm, then buy shares on the exchange to start earning dividends each month.</>
+                : isLogistics
+                  ? <>Visit the Procurement desk to buy your first vehicle: {selectedModel === 'Port Shuttle Operator' || selectedModel === 'Local Courier Operator' ? 'a used delivery van' : 'a box truck'}.</>
+                  : <>Open your company, lease a factory, design your first car and set a production line. Then pick the markets you sell in.</>}
+            </p>
           </div>
         )}
-      </div>
+      </Card>
+      </aside>
 
     </div>
   );
@@ -3323,52 +3388,69 @@ function RegistryTab({ company, onRefresh }: { company: Company | null; onRefres
     });
   }, []);
 
+  const [query, setQuery] = React.useState('');
+  const shown = query.trim()
+    ? all.filter(c => String(c.name || '').toLowerCase().includes(query.trim().toLowerCase()))
+    : all;
+
   return (
-    <div style={{ maxWidth: '720px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <SectionHeader stamp="PUBLIC RECORD">Drennia Commercial Registry</SectionHeader>
-        <button
-          onClick={onRefresh}
-          style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.muted, fontSize: '13px', padding: '4px 12px', cursor: 'pointer', borderRadius: 10 }}
-        >
-          ↺ Refresh
-        </button>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="m-0 font-display text-[20px] font-semibold text-ink">Commercial registry</h2>
+          <p className="m-0 mt-1 text-[14px] text-ink-dim">
+            {loading || fetchError ? 'Every active business, on the public record.' : `${all.length} registered ${all.length === 1 ? 'company' : 'companies'}: every active business, on the public record.`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="sr-only" htmlFor="registry-search">Find a company</label>
+          <input
+            id="registry-search"
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Find a company"
+            className="terminal-input w-56 !py-2 !text-[13px]"
+          />
+          <button type="button" onClick={onRefresh} className="btn-secondary !px-3.5 !py-2 !text-[13px]">↺ Refresh</button>
+        </div>
       </div>
       {loading ? (
-        <PanelBox><p style={{ fontSize: '12px', color: T.muted }}>Loading registry from server…</p></PanelBox>
+        <PanelBox><p className="m-0 text-[14px] text-ink-dim" role="status">Loading the registry…</p></PanelBox>
       ) : fetchError ? (
         <PanelBox>
-          <p style={{ fontSize: '12px', color: T.red, marginBottom: '8px' }}>⚠ {fetchError}</p>
-          <p style={{ fontSize: '11px', color: T.faint }}>Try clicking Refresh above. If the problem persists, please report it.</p>
+          <p className="m-0 mb-2 text-[14px] text-bad">{fetchError}</p>
+          <p className="m-0 text-[13px] text-ink-faint">Try Refresh. If it keeps failing, tell us on Discord.</p>
         </PanelBox>
       ) : all.length === 0 ? (
-        <PanelBox><p style={{ fontSize: '12px', color: T.faint }}>No companies registered yet. Be the first to file!</p></PanelBox>
+        <PanelBox><p className="m-0 text-[14px] text-ink-dim">No companies registered yet. File the first one from Start Business.</p></PanelBox>
+      ) : shown.length === 0 ? (
+        <PanelBox><p className="m-0 text-[14px] text-ink-dim">No company matches “{query}”.</p></PanelBox>
       ) : (
-        <>
-          <p style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.faint, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            {all.length} registered {all.length === 1 ? 'company' : 'companies'} — every active business in the world
-          </p>
-          {all.map(c => (
-            <div key={c.id} style={{ background: T.panel, border: `1px solid ${c.id === company?.id ? T.gold : T.border}`, padding: '14px', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: c.id === company?.id ? T.gold : T.ivory }}>
-                    {c.name} {c.id === company?.id && <span style={{ fontSize: '10px', color: T.gold, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>(Your Company)</span>}
+        <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {shown.map(c => {
+            const mine = c.id === company?.id;
+            return (
+              <li key={c.id} className={`flex flex-col gap-3 rounded-card border bg-surface p-4 shadow-card ${mine ? 'border-accent/60' : 'border-line'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className={`truncate text-[15px] font-semibold ${mine ? 'text-accent' : 'text-ink'}`}>{c.name}</div>
+                    {mine && <div className="text-[12px] text-accent">Your company</div>}
                   </div>
-                  <div style={{ fontSize: '11px', color: T.muted, marginTop: '3px' }}>
-                    {getLegalStructureName(c.legal_structure_id)} · {getSectorName(c.industry_id)} · {getStateName(c.headquarters_state_id)}
-                  </div>
+                  <span className="shrink-0 rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-semibold capitalize text-good">{c.status}</span>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.mint, textTransform: 'uppercase' }}>{c.status}</div>
+                <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+                  <div><dt className="text-ink-faint">Sector</dt><dd className="m-0 text-ink-dim">{getSectorName(c.industry_id) || '—'}</dd></div>
+                  <div><dt className="text-ink-faint">Head office</dt><dd className="m-0 text-ink-dim">{getStateName(c.headquarters_state_id) || '—'}</dd></div>
+                  <div><dt className="text-ink-faint">Structure</dt><dd className="m-0 text-ink-dim">{getLegalStructureName(c.legal_structure_id) || '—'}</dd></div>
                   {c.created_at_world_year !== undefined && c.created_at_world_year !== null && (
-                    <div style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", color: T.faint }}>{formatWorldDate(c.created_at_world_year, c.created_at_world_month)}</div>
+                    <div><dt className="text-ink-faint">Founded</dt><dd className="m-0 font-mono text-ink-dim">{formatWorldDate(c.created_at_world_year, c.created_at_world_month)}</dd></div>
                   )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </>
+                </dl>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
@@ -3522,75 +3604,49 @@ function ProcurementTab({ company, onRefresh, showNotif }: any) {
 
 // ─── DRENNPORT EXCHANGE TAB ─────────────────────────────────────────────────────────
 function DrennportExchangeTab() {
-  const router = require('next/navigation').useRouter();
+  const router = useRouter();
+  const venues = [
+    {
+      href: '/drennia/exchange',
+      kicker: 'Drennport Exchange',
+      title: 'DRX Bourse: share market',
+      body: 'Trade shares of listed companies on a live order book. Take your own company public to raise capital: it needs the Corporation structure, and the IPO desk inside your company lists every requirement.',
+      facts: ['Limit orders', 'Price-time priority', 'Instant settlement'],
+      cta: 'Enter the Bourse',
+      primary: true,
+    },
+    {
+      href: '/drennia/investments',
+      kicker: 'Private capital',
+      title: 'Private capital market',
+      body: 'Buy equity in private, unlisted companies through fixed-price placements, and post or accept loans between players. Open to every structure except Sole Trader.',
+      facts: ['Fixed-price placements', 'Shareholder cap', 'Monthly loan repayments'],
+      cta: 'Open the private market',
+      primary: false,
+    },
+  ];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '1000px' }}>
-      
-      {/* Westport Bourse */}
-      <div
-        style={{ background: T.paper, border: `1px solid ${T.borderGold}`, padding: '24px', cursor: 'pointer' }}
-        onClick={() => router.push('/drennia/exchange')}
-        role="link"
-        aria-label="Open the Westport Bourse share exchange"
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      {venues.map(v => (
+        <button
+          key={v.href}
+          type="button"
+          onClick={() => router.push(v.href)}
+          className={`group flex flex-col gap-4 rounded-card border p-6 text-left shadow-card transition-colors ${v.primary ? 'border-accent/40 bg-accent/[0.04] hover:border-accent/70' : 'border-line bg-surface hover:border-line-strong'}`}
+        >
           <div>
-            <div style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.gold, marginBottom: '6px' }}>Westport Bourse</div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Share Market — Open for Trading</div>
-            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '480px', margin: 0 }}>
-              Trade shares of player-owned Public Corporations on a live order book. 
-              Convert your company to a Public Corporation ($250,000 minimum value) to IPO and raise capital.
-            </p>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">{v.kicker}</div>
+            <h2 className="m-0 font-display text-[22px] font-semibold text-ink">{v.title}</h2>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Listing Requires</div>
-            <div style={{ fontSize: '11px', color: T.gold, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>Public Corporation Structure</div>
-            <div style={{ fontSize: '11px', color: T.gold, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>$250,000 Company Value Min.</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
-          <div style={{ fontSize: '11px', color: T.muted, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>
-            Limit orders · price-time priority · instant settlement · player companies only
-          </div>
-          <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.mint, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
-            Enter the Bourse →
-          </div>
-        </div>
-      </div>
-
-      {/* Private Capital Market */}
-      <div
-        style={{ background: T.panel, border: `1px solid ${T.border}`, padding: '24px', cursor: 'pointer' }}
-        onClick={() => router.push('/drennia/investments')}
-        role="link"
-        aria-label="Open the Private Capital Market for placements and loans"
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.2em', color: T.steel, marginBottom: '6px' }}>Drennia Commerce Division</div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: T.ivory, marginBottom: '8px' }}>Private Capital Market</div>
-            <p style={{ fontSize: '12px', color: T.muted, lineHeight: 1.7, maxWidth: '520px', margin: 0 }}>
-              Trade equity in private and unlisted companies via fixed-price placements, and post or accept player-to-player loans.
-              No minimum value requirement — available to all company structures except Sole Trader.
-            </p>
-          </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: '10px', fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", textTransform: 'uppercase', letterSpacing: '0.1em', color: T.faint, marginBottom: '4px' }}>Instruments</div>
-            <div style={{ fontSize: '11px', color: T.steel, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>Private Equity Placements</div>
-            <div style={{ fontSize: '11px', color: T.steel, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>Player-to-Player Loans</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '24px', marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${T.border}` }}>
-          <div style={{ fontSize: '11px', color: T.muted, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>
-            Fixed-price blocks · shareholder cap enforced · amortized monthly repayments · escrow model
-          </div>
-          <div style={{ marginLeft: 'auto', fontSize: '10px', color: T.steel, fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'flex-end' }}>
-            Open Private Market →
-          </div>
-        </div>
-      </div>
-
+          <p className="m-0 max-w-[62ch] text-[14px] leading-relaxed text-ink-dim">{v.body}</p>
+          <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+            {v.facts.map(f => <li key={f} className="rounded-full border border-line px-2.5 py-1 text-[12px] text-ink-dim">{f}</li>)}
+          </ul>
+          <span className="mt-auto inline-flex items-center gap-1.5 border-t border-line pt-4 text-[14px] font-semibold text-accent">
+            {v.cta} <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </span>
+        </button>
+      ))}
     </div>
   );
 }
-

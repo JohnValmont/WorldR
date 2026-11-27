@@ -192,7 +192,7 @@ export default function WorldPage() {
       </PageHeader>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6">
+      <div className="page-frame flex-1 overflow-y-auto py-5">
         {loading ? (
           <div className="text-[14px] text-ink-dim" role="status">Loading the world…</div>
         ) : (

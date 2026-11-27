@@ -11,11 +11,11 @@ interface PageShellProps {
   className?: string;
 }
 
-/** Constrains content to max-w-7xl, applies standard padding, and optionally lays out a right sidebar */
+/** Centres content in the shared page frame (.page-frame, --page-max) and optionally lays out a right sidebar. */
 export default function PageShell({ children, sidebar, sidebarWidth = 340, className }: PageShellProps) {
   if (sidebar) {
     return (
-      <div className={cn('w-full px-4 md:px-6', className)}>
+      <div className={cn('page-frame', className)}>
         {/* Single column on mobile/tablet, content + sidebar split at lg+.
             The lg breakpoint lives in globals.css (.page-shell-grid) so the
             sidebar width can stay a runtime prop via the --sidebar-w var. */}
@@ -31,7 +31,7 @@ export default function PageShell({ children, sidebar, sidebarWidth = 340, class
   }
 
   return (
-    <div className={cn('w-full px-4 md:px-6 flex flex-col gap-6', className)}>
+    <div className={cn('page-frame flex flex-col gap-6', className)}>
       {children}
     </div>
   );
