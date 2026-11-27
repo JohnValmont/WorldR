@@ -204,6 +204,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 
 ## Bank loans, nation scoping, test safety — Operational Rules (DO NOT BREAK)
 - Every bank loan is repaid: the economy tick (processEconomyMonth, step 1b) collects interest + principal from banking_active_loans and character_debt_facilities via settleMonth (services/banking.rules.ts, tests/banking.test.ts). Numbers live in constants/banking.ts. A new kind of loan must be added to that step, or it is free money.
+- The loan screens (Banks → Active debt schedule, a bank's Active debt tab) read GET /banks/loans (bank.controller getMyLoans, read-only). Months left and payments due come from projectLoan, which walks settleMonth on the server; the tick reads rows with the same loanStateFromRow. Never compute a loan schedule in the client or chart loans by array position.
 - Taking a loan validates the amount with parseLoanAmount and writes the cash AND the loan row in ONE transaction with the balance row locked. Never credit cash before the loan row exists, and never write `balance + amount` from request input (a string amount concatenates).
 - A politics write (POST/PUT/PATCH/DELETE) always happens in the player's own nation: resolve the state with requestedPolState (playerNation.ts), never straight from req.body.stateId / req.query.stateId. Reads may look at another nation. Joining a party checks party.state_id is the player's nation.
 - Look up the player's character with `status: 'active'` (a user can have deleted characters).

@@ -4,8 +4,8 @@
  */
 import {
   AMORTIZATION_TYPES, AmortizationType, BANK_DEFAULT_AFTER_MISSES, COMPANY_FACILITY_SPREAD, COMPANY_FACILITY_TYPES,
-  COMPANY_LOAN_DEFAULT_TERM, COMPANY_LOAN_MAX_TERM, COMPANY_LOAN_MIN_TERM, CompanyFacilityType, PERSONAL_LOAN_MAX,
-  PERSONAL_LOAN_MIN, PERSONAL_LOAN_NET_WORTH_SHARE, TERM_FACILITY_FIXED_RATE,
+  COMPANY_LOAN_DEFAULT_TERM, COMPANY_LOAN_MAX_TERM, COMPANY_LOAN_MIN_TERM, CompanyFacilityType, LOAN_PROJECTION_MAX_MONTHS,
+  LOAN_SCHEDULE_YEAR_MONTHS, PERSONAL_LOAN_MAX, PERSONAL_LOAN_MIN, PERSONAL_LOAN_NET_WORTH_SHARE, TERM_FACILITY_FIXED_RATE,
 } from '../constants/banking';
 
 /** A whole-dollar amount from a request, or null if it isn't a positive finite number. */
@@ -99,4 +99,50 @@ export function settleMonth(s: LoanState, canPay: boolean): LoanOutcome {
     status: missed >= BANK_DEFAULT_AFTER_MISSES ? 'DEFAULTED' : 'ACTIVE',
     paid: 0,
   };
+}
+
+export type LoanKind = 'company' | 'personal';
+
+/**
+ * A loan row read the way the monthly tick reads it. Company loans
+ * (banking_active_loans) may be balloon and may have no term (taken before
+ * repayment existed); personal loans (character_debt_facilities) are always
+ * amortizing with a term.
+ */
+export function loanStateFromRow(row: any, kind: LoanKind): LoanState {
+  const months = row.months_remaining;
+  return {
+    remaining: Number(row.remaining_principal),
+    yearlyRate: Number(row.interest_rate),
+    payment: Number(row.monthly_payment),
+    monthsRemaining: kind === 'personal' ? Number(months) : (months === null || months === undefined ? null : Number(months)),
+    amortization: kind === 'company' && row.amortization_type === 'balloon' ? 'balloon' : 'amortizing',
+    missed: Number(row.missed_payments || 0),
+  };
+}
+
+export interface LoanProjection {
+  /** Payments until the loan is repaid if every one is made; null if it is not repaid within LOAN_PROJECTION_MAX_MONTHS. */
+  monthsLeft: number | null;
+  /** Total of the next LOAN_SCHEDULE_YEAR_MONTHS payments (fewer if the loan ends sooner). */
+  dueNextYear: number;
+  /** The last payment (for a balloon loan, the lump sum); null if the loan does not end. */
+  finalPayment: number | null;
+}
+
+/**
+ * The rest of a loan if every payment is made on time, month by month with
+ * settleMonth: the same rule the economy tick applies. Nothing is estimated
+ * beyond "the borrower pays".
+ */
+export function projectLoan(s: LoanState): LoanProjection {
+  let state: LoanState = { ...s, missed: 0 };
+  let dueNextYear = 0;
+  for (let month = 1; month <= LOAN_PROJECTION_MAX_MONTHS; month++) {
+    const out = settleMonth(state, true);
+    if (month <= LOAN_SCHEDULE_YEAR_MONTHS) dueNextYear += out.paid;
+    if (out.status === 'REPAID') return { monthsLeft: month, dueNextYear, finalPayment: out.paid };
+    state = { ...state, remaining: Math.round(out.remaining), monthsRemaining: out.monthsRemaining };
+  }
+  return { monthsLeft: null, dueNextYear, finalPayment: null };
 }

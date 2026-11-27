@@ -33,3 +33,11 @@ export const PERSONAL_LOAN_REFUSED_RATINGS = ['D', 'CCC'];
 
 /** Consecutive missed monthly payments before a loan is in default. */
 export const BANK_DEFAULT_AFTER_MISSES = 2;
+
+/** The loan schedule screen: "due in the next year" covers this many monthly payments. */
+export const LOAN_SCHEDULE_YEAR_MONTHS = 12;
+/**
+ * A projection stops after this many months. A loan whose payment no longer covers
+ * its interest never ends; the screen says so instead of looping forever.
+ */
+export const LOAN_PROJECTION_MAX_MONTHS = 600;

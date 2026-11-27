@@ -1,12 +1,13 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Landmark, ShieldCheck, TrendingUp, Wallet, Activity, ChevronLeft, Target, Building2, User, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { api } from '@/lib/api';
+import LoanSchedule, { BankLoan } from './LoanSchedule';
 
 const COLORS = ['#4B6382', '#E8B84B', '#4FB286', '#8F3D3D', '#D9625A', '#868994'];
 
-export default function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, institutionData, loadError, onBack, getRatingColor, onTakeLoan, isSubmitting: parentIsSubmitting, myCompanies, onSelectCompany }: any) {
+export default function BankPortal({ bank, company, playerCash, personalDossier, corporateDossier, institutionData, loadError, loans, loansError, onBack, getRatingColor, onTakeLoan, isSubmitting: parentIsSubmitting, myCompanies, onSelectCompany }: any) {
   const [activeTab, setActiveTab] = useState<'portfolio' | 'apply' | 'debt'>('portfolio');
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
@@ -408,80 +409,21 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
   };
 
   const renderDebtSchedule = () => {
-    const loans = corporateDossier?.activeLoans || [];
-
-    // Mock data for maturity ladder (in reality, compute from loans remaining arcs)
-    const ladderData = [
-      { quarter: 'Q1', amount: loans.length > 0 ? (loans[0].remaining_principal / 1000000) : 0 },
-      { quarter: 'Q2', amount: loans.length > 1 ? (loans[1].remaining_principal / 1000000) : 0 },
-      { quarter: 'Q3', amount: 0 },
-      { quarter: 'Q4', amount: loans.length > 2 ? (loans[2].remaining_principal / 1000000) : 0 },
-    ];
-    
-    const annualDebtService = loans.reduce((sum: number, l: any) => sum + (Number(l.monthly_payment) * 12), 0);
-
+    // Real loans at this bank (GET /banks/loans), personal and company.
+    const atThisBank: BankLoan[] = (loans || []).filter((l: BankLoan) => l.bankId === bank.id);
     return (
-      <div className="w-full animate-slide-in space-y-6">
-        <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-serif text-xl text-zinc-100">Active Debt Maturity Ladder</h3>
-            <div className="text-right">
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Est. 12m Debt Service</div>
-              <div className="text-lg font-bold font-mono text-[#D9625A]">${annualDebtService.toLocaleString('en-US')}</div>
-            </div>
-          </div>
-          <div className="h-64 mb-8">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={ladderData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#262B36" vertical={false} />
-                <XAxis dataKey="quarter" stroke="#868994" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#868994" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}M`} />
-                <Tooltip cursor={{ fill: '#1B1F29' }} contentStyle={{ backgroundColor: '#1E1B14', border: '1px solid #262B36', fontSize: '11px', color: '#ECEAE4' }} />
-                <Bar dataKey="amount" fill="#8F3D3D" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm font-mono whitespace-nowrap">
-              <thead className="bg-[#1B1F29] text-zinc-500 text-[10px]">
-                <tr>
-                  <th className="px-4 py-3 font-normal rounded-tl">#</th>
-                  <th className="px-4 py-3 font-normal">FACILITY</th>
-                  <th className="px-4 py-3 font-normal">BALANCE</th>
-                  <th className="px-4 py-3 font-normal">RATE</th>
-                  <th className="px-4 py-3 font-normal">NEXT PAYMENT</th>
-                  <th className="px-4 py-3 font-normal">TYPE</th>
-                  <th className="px-4 py-3 font-normal rounded-tr">STATUS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/50">
-                {loans.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-500 italic">No active debt facilities.</td></tr>
-                )}
-                {loans.map((loan: any, i: number) => (
-                  <tr key={loan.id} className="text-zinc-300 hover:bg-zinc-800/20 transition-colors">
-                    <td className="px-4 py-3 text-zinc-500">{i + 1}</td>
-                    <td className="px-4 py-3 text-white uppercase">{loan.facility_type}</td>
-                    <td className="px-4 py-3 font-bold">${Number(loan.remaining_principal).toLocaleString('en-US')}</td>
-                    <td className="px-4 py-3">{(Number(loan.interest_rate) * 100).toFixed(2)}%</td>
-                    <td className="px-4 py-3 text-[#D9625A]">${Number(loan.monthly_payment).toLocaleString('en-US')}</td>
-                    <td className="px-4 py-3 text-zinc-500 uppercase">{loan.amortization_type || 'AMORTIZING'}</td>
-                    <td className="px-4 py-3 text-[#4FB286]">✅ Active</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {loans.length > 0 && (
-            <div className="mt-6 flex justify-end">
-              <button className="px-4 py-2 bg-transparent border border-zinc-700 text-zinc-400 font-mono text-xs rounded hover:bg-zinc-800 transition-colors">
-                REFINANCE WITH COMPETITOR...
-              </button>
-            </div>
-          )}
-        </div>
+      <div className="w-full animate-slide-in space-y-4">
+        <h3 className="font-serif text-xl text-ink">Active debt</h3>
+        {loansError ? (
+          <p role="alert" className="bg-surface border border-line rounded-card p-6 text-sm text-bad">{loansError}</p>
+        ) : (
+          <LoanSchedule
+            loans={atThisBank}
+            showLender={false}
+            emptyMessage="Loans you take from this bank appear here, with what is left to pay, the monthly payment and when each one ends."
+            emptyAction={{ label: 'Apply for credit', onClick: () => setActiveTab('apply') }}
+          />
+        )}
       </div>
     );
   };
@@ -491,7 +433,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
       {/* Top Navigation Bar */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between border-b border-zinc-800 pb-6 mb-6">
         <div className="flex items-center">
-          <button onClick={onBack} className="mr-4 p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-100 flex items-center justify-center border border-zinc-700">
+          <button type="button" onClick={onBack} aria-label="Back to banking institutions" className="mr-4 p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-100 flex items-center justify-center border border-zinc-700">
             <ChevronLeft size={16} />
           </button>
           <div className="w-10 h-10 rounded border border-zinc-800 flex items-center justify-center mr-4 bg-[#0B0D12]" style={{ color: bank.color }}>
@@ -502,7 +444,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
               <h2 className="font-serif text-2xl font-bold text-zinc-100 m-0 leading-tight tracking-wide uppercase">
                 {bank.name}
               </h2>
-              <span className="bg-[#4B6382]/20 text-[#4B6382] border border-[#4B6382]/30 px-2 py-0.5 rounded text-[10px] font-mono tracking-widest font-bold">GOVERNMENT-OWNED</span>
+              <span className="bg-info/10 text-info border border-info/30 px-2 py-0.5 rounded text-[10px] font-mono tracking-widest font-bold">GOVERNMENT-OWNED</span>
               <span className="bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded text-[10px] font-mono tracking-widest">RATING: {corporateDossier?.ratingTier || 'N/A'}</span>
             </div>
             

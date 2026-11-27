@@ -1,7 +1,6 @@
 import { refreshCompanyValue, companyBookValueSql, characterNetDebt } from './companyValue';
 import { logger } from '../../utils/logger';
-import { AmortizationType } from '../constants/banking';
-import { settleMonth } from './banking.rules';
+import { loanStateFromRow, settleMonth } from './banking.rules';
 
 /**
  * Economy tick processor — runs inside the world tick transaction each game month,
@@ -65,11 +64,7 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
   const companyLoans = await trx('banking_active_loans').where({ status: 'ACTIVE' }).forUpdate();
   for (const loan of companyLoans) {
     const fin = await trx('company_finances').where({ company_id: loan.borrower_id }).forUpdate().first();
-    const state = {
-      remaining: Number(loan.remaining_principal), yearlyRate: Number(loan.interest_rate), payment: Number(loan.monthly_payment),
-      monthsRemaining: loan.months_remaining === null || loan.months_remaining === undefined ? null : Number(loan.months_remaining),
-      amortization: (loan.amortization_type === 'balloon' ? 'balloon' : 'amortizing') as AmortizationType, missed: Number(loan.missed_payments || 0),
-    };
+    const state = loanStateFromRow(loan, 'company');
     const cash = Number(fin?.available_cash ?? 0);
     const out = settleMonth(state, !!fin && cash >= settleMonth(state, true).paid);
     if (out.paid > 0) {
@@ -95,10 +90,7 @@ export async function processEconomyMonth(trx: any, year: number, month: number)
   const personalLoans = await trx('character_debt_facilities').where({ status: 'active' }).forUpdate();
   for (const loan of personalLoans) {
     const fin = await trx('character_finances').where({ character_id: loan.character_id }).forUpdate().first();
-    const state = {
-      remaining: Number(loan.remaining_principal), yearlyRate: Number(loan.interest_rate), payment: Number(loan.monthly_payment),
-      monthsRemaining: Number(loan.months_remaining), amortization: 'amortizing' as AmortizationType, missed: Number(loan.missed_payments || 0),
-    };
+    const state = loanStateFromRow(loan, 'personal');
     const out = settleMonth(state, !!fin && Number(fin.cash_in_hand) >= settleMonth(state, true).paid);
     if (out.paid > 0) {
       await trx('character_finances').where({ character_id: loan.character_id }).decrement('cash_in_hand', out.paid);

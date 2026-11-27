@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import BankPortal from './BankPortal';
-import { Landmark, ShieldCheck, TrendingUp, ArrowRight, Wallet, Activity, Target, Building2, User, ChevronLeft } from 'lucide-react';
+import LoanSchedule, { BankLoan, fetchMyLoans } from './LoanSchedule';
+import { Landmark, ArrowRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 const T = {
@@ -32,7 +33,7 @@ const BANKS = [
   }
 ];
 
-type GlobalSidebarTab = 'institutions' | 'profile' | 'debt' | 'treasury';
+type GlobalSidebarTab = 'institutions' | 'profile' | 'debt';
 
 export default function BanksTab({ company, playerCash, onRefresh }: { company: any, playerCash: number, onRefresh?: () => void }) {
   const [activeSidebarTab, setActiveSidebarTab] = useState<GlobalSidebarTab>('institutions');
@@ -44,6 +45,16 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Every bank loan the player owes, personal and company (GET /banks/loans).
+  const [loans, setLoans] = useState<BankLoan[]>([]);
+  const [loansError, setLoansError] = useState<string | null>(null);
+
+  const reloadLoans = () => fetchMyLoans()
+    .then(list => { setLoans(list); setLoansError(null); })
+    .catch(err => {
+      console.error('Failed to load loans:', err);
+      setLoansError(err?.response?.data?.error || 'Could not load your loans. Try again in a moment.');
+    });
 
   const [myCompanies, setMyCompanies] = useState<any[]>([]);
   const [activeCompany, setActiveCompany] = useState<any>(company);
@@ -92,6 +103,9 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
         );
       }
 
+      // Loans owed by the player and every company they own.
+      promises.push(reloadLoans());
+
       // Fetch institution data
       promises.push(
         api.get('/banks/institution/drennia-national').then(res => {
@@ -131,6 +145,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
         const cd = await api.get(`/banks/dossier/${activeCompany.id}`);
         setCorporateDossier(cd.data);
       }
+      await reloadLoans();
       
     } catch (e: any) {
       console.error('Loan application error:', e);
@@ -170,7 +185,9 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             corporateDossier={corporateDossier}
             institutionData={institutionData}
             loadError={loadError}
-            onBack={() => setSelectedBankId(null)}
+            loans={loans}
+            loansError={loansError}
+            onBack={() => { setSelectedBankId(null); reloadLoans(); }}
             onTakeLoan={handleTakeLoan}
             isSubmitting={isSubmitting}
             getRatingColor={getRatingColor}
@@ -205,23 +222,25 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
     if (activeSidebarTab === 'debt') {
       return (
         <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
-          <h3 className="font-serif text-2xl font-bold text-zinc-100">Active Debt Schedule</h3>
-          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
-            <Activity size={32} className="text-zinc-800 mb-4" />
-            <div className="text-zinc-500 text-sm">No active debt facilities.</div>
+          <div>
+            <h2 className="font-serif text-2xl font-bold text-ink">Active debt schedule</h2>
+            <p className="text-sm text-ink-dim mt-1">Your personal loan and the bank loans of every company you own.</p>
           </div>
-        </div>
-      );
-    }
-
-    if (activeSidebarTab === 'treasury') {
-      return (
-        <div className="p-6 md:p-8 max-w-5xl space-y-6 animate-slide-in">
-          <h3 className="font-serif text-2xl font-bold text-zinc-100">Treasury & Wealth</h3>
-          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
-            <Wallet size={32} className="text-zinc-800 mb-4" />
-            <div className="text-zinc-500 text-sm">Wealth management systems are currently offline.</div>
-          </div>
+          {loansError ? (
+            <div role="alert" className="bg-surface border border-line rounded-card p-6 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-sm text-bad">{loansError}</span>
+              <button type="button" onClick={() => reloadLoans()} className="btn-secondary text-xs px-3 py-1.5">Try again</button>
+            </div>
+          ) : (
+            <LoanSchedule
+              loans={loans}
+              emptyMessage="When you or one of your companies borrows from a bank, each loan appears here with what is left to pay, the monthly payment and when it ends."
+              emptyAction={{
+                label: 'Open a bank',
+                onClick: () => { setActiveSidebarTab('institutions'); setSelectedBankId(BANKS[0].id); },
+              }}
+            />
+          )}
         </div>
       );
     }
@@ -244,8 +263,9 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             
             {myCompanies.length > 0 && (
               <div className="flex flex-col gap-1.5 mt-2">
-                <span className="text-[10px] uppercase text-zinc-500 tracking-widest">Active Corporation</span>
-                <select 
+                <label htmlFor="banks-active-company" className="text-[10px] uppercase text-ink-faint tracking-widest">Active Corporation</label>
+                <select
+                  id="banks-active-company"
                   className="bg-[#13161E] text-zinc-300 text-[11px] font-mono border border-zinc-800 rounded px-2 py-1.5 focus:outline-none focus:border-terminal-amber truncate max-w-[170px]"
                   value={activeCompany?.id || ''}
                   onChange={(e) => {
@@ -261,7 +281,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
             )}
           </div>
           
-          {(['institutions', 'profile', 'debt', 'treasury'] as const).map((tab) => {
+          {(['institutions', 'profile', 'debt'] as const).map((tab) => {
             const isActive = activeSidebarTab === tab;
             return (
               <button
@@ -280,8 +300,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
               >
                 {tab === 'institutions' ? 'Banking Institutions' : 
                  tab === 'profile' ? 'Financial Profile' : 
-                 tab === 'debt' ? 'Active Debt Schedule' : 
-                 'Treasury & Wealth'}
+                 'Active Debt Schedule'}
               </button>
             );
           })}

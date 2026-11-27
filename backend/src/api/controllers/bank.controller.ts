@@ -3,12 +3,42 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { randomUUID } from 'crypto';
 import {
-  BANK_ID, COMPANY_LOAN_MAX_TERM, COMPANY_LOAN_MIN_TERM, PERSONAL_LOAN_MIN, PERSONAL_LOAN_REFUSED_RATINGS,
+  BANK_DEFAULT_AFTER_MISSES, BANK_ID, COMPANY_LOAN_MAX_TERM, COMPANY_LOAN_MIN_TERM, PERSONAL_LOAN_MIN, PERSONAL_LOAN_REFUSED_RATINGS,
   PERSONAL_LOAN_SPREAD, PERSONAL_LOAN_TERM_MONTHS,
 } from '../constants/banking';
 import {
-  facilityBaseRate, isCompanyFacility, monthlyPayment, parseAmortization, parseLoanAmount, parseTerm, personalLoanAllowed, personalLoanLimit,
+  facilityBaseRate, isCompanyFacility, loanStateFromRow, LoanKind, monthlyPayment, parseAmortization, parseLoanAmount, parseTerm,
+  personalLoanAllowed, personalLoanLimit, projectLoan,
 } from '../services/banking.rules';
+
+/**
+ * One bank loan as the loan screens show it. Defaulted loans are listed (still
+ * owed) but have no schedule: the monthly tick only collects active loans.
+ */
+function loanView(row: any, kind: LoanKind, bankNames: Map<string, string>) {
+  const defaulted = String(row.status).toLowerCase() === 'defaulted';
+  const plan = defaulted ? null : projectLoan(loanStateFromRow(row, kind));
+  return {
+    id: String(row.id),
+    borrower: kind,
+    companyId: kind === 'company' ? String(row.borrower_id) : null,
+    companyName: kind === 'company' ? (row.company_name ?? null) : null,
+    bankId: row.bank_id ?? BANK_ID,
+    bankName: bankNames.get(row.bank_id ?? BANK_ID) ?? 'State Bank',
+    facilityType: String(row.facility_type),
+    principal: Number(row.principal_amount),
+    remaining: Number(row.remaining_principal),
+    yearlyRate: Number(row.interest_rate),
+    monthlyPayment: Number(row.monthly_payment),
+    amortization: kind === 'company' && row.amortization_type === 'balloon' ? 'balloon' : 'amortizing',
+    missedPayments: Number(row.missed_payments || 0),
+    missesUntilDefault: Math.max(0, BANK_DEFAULT_AFTER_MISSES - Number(row.missed_payments || 0)),
+    status: defaulted ? 'defaulted' : 'active',
+    monthsLeft: plan?.monthsLeft ?? null,
+    dueNextYear: plan?.dueNextYear ?? 0,
+    finalPayment: plan?.finalPayment ?? null,
+  };
+}
 
 // ── Helper: resolve calling character from user session ─────────────────────
 async function getActiveCharacter(userId: number) {
@@ -21,6 +51,42 @@ async function getActiveCharacter(userId: number) {
 }
 
 export class BankController {
+
+  // ── GET /banks/loans ───────────────────────────────────────────────────────
+  // Every bank loan the player owes: their personal loan and the loans of every
+  // company they own. Read-only (unlike the dossiers, it writes no rating rows).
+  static async getMyLoans(req: Request, res: Response, next: NextFunction) {
+    try {
+      const character = await getActiveCharacter(req.user!.id);
+      if (!character) return res.status(404).json({ error: 'Character not found' });
+
+      const [personalRows, companyRows, banks] = await Promise.all([
+        db('character_debt_facilities').where({ character_id: character.id }).whereIn('status', ['active', 'defaulted']),
+        db('banking_active_loans as l')
+          .joinRaw('JOIN companies AS c ON c.id::text = l.borrower_id')
+          .where('c.owner_character_id', character.id)
+          .where('l.borrower_type', 'company')
+          .whereIn('l.status', ['ACTIVE', 'DEFAULTED'])
+          .select('l.*', 'c.name as company_name'),
+        db('banking_institutions').select('id', 'name'),
+      ]);
+      const bankNames = new Map<string, string>(banks.map((b: any) => [String(b.id), String(b.name)]));
+
+      const loans = [
+        ...personalRows.map((r: any) => loanView(r, 'personal', bankNames)),
+        ...companyRows.map((r: any) => loanView(r, 'company', bankNames)),
+      ];
+      res.json({
+        loans,
+        totals: {
+          remaining: loans.reduce((sum, l) => sum + l.remaining, 0),
+          dueNextYear: loans.reduce((sum, l) => sum + l.dueNextYear, 0),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 
   // ── GET /banks/institution/:bankId ─────────────────────────────────────────
   static async getInstitutionData(req: Request, res: Response, next: NextFunction) {
