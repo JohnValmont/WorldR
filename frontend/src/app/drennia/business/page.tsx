@@ -1219,18 +1219,6 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
   const isLogistics = selectedSector === 'Shipping & Logistics';
   const isFinance   = selectedSector === 'Finance & Services';
 
-  // Player already has BOTH slots filled — fully block
-  if (company && financeCompany) {
-    return (
-      <Card pad="lg" className="mx-auto w-full max-w-[640px]">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Both company slots filled</div>
-        <p className="m-0 text-[14px] leading-relaxed text-ink-dim">
-          You have <strong className="text-zinc-100">{company.name}</strong> (operational) and <strong className="text-zinc-100">{financeCompany.name}</strong> (Capital Partners). No more company slots are available in the closed alpha.
-        </p>
-      </Card>
-    );
-  }
-
   // Player has an operational company but no finance firm yet — Finance slot is available
   const financeSlotOnly = !!company && !financeCompany;
 
@@ -1241,6 +1229,19 @@ function StartBusinessTab({ step, setStep, selectedSector, setSelectedSector, se
       setChosenCapital(SECTOR_MIN_CAPITAL.finance);
     }
   }, [financeSlotOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Player already has BOTH slots filled — fully block. This return must stay below every
+  // hook in this component: returning before a hook makes React crash when the slots change.
+  if (company && financeCompany) {
+    return (
+      <Card pad="lg" className="mx-auto w-full max-w-[640px]">
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Both company slots filled</div>
+        <p className="m-0 text-[14px] leading-relaxed text-ink-dim">
+          You have <strong className="text-zinc-100">{company.name}</strong> (operational) and <strong className="text-zinc-100">{financeCompany.name}</strong> (Capital Partners). No more company slots are available in the closed alpha.
+        </p>
+      </Card>
+    );
+  }
 
   const STEP_LABELS = isFinance
     ? ['Sector', 'Head office', 'Name', 'Capital', 'Confirm']
