@@ -221,6 +221,7 @@ Phase 4 (Self-Analytics, Market Structure, and Paid Research) is completely fini
 - No decorative data: sparklines, trends and charts must be real numbers or absent.
 - Landing/sign-up scripts are self-hosted in frontend/public/landing/vendor; never load them from a CDN. The pages must work without WebGL (no-scene) and without their module script (failsafe.js).
 - Game screens use PageHeader + Tabs from components/ui (one h1 per page; tabs are real ARIA tabs). Do not hand-roll another header or tab bar.
+- Every game screen's content is centred in `.page-frame` (globals.css, `--page-max`), aligned with the top bar. Do not add per-screen max widths or left-aligned `max-w-*` sections; wide screens use a main column + right rail.
 - The month briefing (components/gameplay/MonthBriefing.tsx) only shows measured changes from GET /politics/desk against the player's last snapshot. Never add an estimated or invented number to it, and never poll the desk from it.
 - Before shipping UI, run tools/ui-audit (journey.js desktop + mobile, a11y.js). Keep 0 axe violations. These scripts are local-only (guard.js) and use the non-production verification bypass.
 - Password minimum is PASSWORD_MIN_LENGTH (backend/src/api/constants/auth.ts); the sign-up page and the Next register/reset pages must match it.

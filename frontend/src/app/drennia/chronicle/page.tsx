@@ -594,7 +594,8 @@ export default function ChroniclePage() {
       {showGuideModal && <GuideModal onDismiss={() => setShowGuideModal(false)} />}
 
       {/* ── Top bar: who, your numbers, the clock ─────────────────────────── */}
-      <header className="flex items-center justify-between px-4 md:px-6 py-2.5 border-b border-line bg-surface/60 shrink-0 gap-x-4 gap-y-2 flex-wrap">
+      <header className="border-b border-line bg-surface/60 shrink-0">
+        <div className="page-frame flex items-center justify-between py-2.5 gap-x-4 gap-y-2 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <StatusDot variant="live" />
           <span className="text-[13px] font-semibold text-zinc-100 truncate">{characterName}</span>
@@ -611,6 +612,7 @@ export default function ChroniclePage() {
         <div className="flex items-center gap-3">
           <WorldTimeControl />
           <NotificationBell />
+        </div>
         </div>
       </header>
 

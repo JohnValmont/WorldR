@@ -19,7 +19,8 @@ export default function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn('shrink-0 border-b border-line px-4 pt-5 md:px-6', !children && 'pb-5', className)}>
+    <header className={cn('shrink-0 border-b border-line', className)}>
+      <div className={cn('page-frame pt-5', !children && 'pb-5')}>
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           {kicker && <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">{kicker}</div>}
@@ -28,7 +29,9 @@ export default function PageHeader({
         </div>
         {aside && <div className="flex shrink-0 items-end gap-4">{aside}</div>}
       </div>
-      {children && <div className="mt-4 -mx-1">{children}</div>}
+      {/* The header draws the bottom rule full-bleed, so a Tabs row inside drops its own. */}
+      {children && <div className="mt-4 -mx-1 [&>*]:border-b-0">{children}</div>}
+      </div>
     </header>
   );
 }

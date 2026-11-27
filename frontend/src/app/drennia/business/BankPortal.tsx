@@ -432,15 +432,15 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
     <div className="flex flex-col h-full animate-slide-in p-6 md:p-8 max-w-6xl mx-auto w-full">
       {/* Top Navigation Bar */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between border-b border-zinc-800 pb-6 mb-6">
-        <div className="flex items-center">
+        <div className="flex items-center min-w-0">
           <button type="button" onClick={onBack} aria-label="Back to banking institutions" className="mr-4 p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-100 flex items-center justify-center border border-zinc-700">
             <ChevronLeft size={16} />
           </button>
           <div className="w-10 h-10 rounded border border-zinc-800 flex items-center justify-center mr-4 bg-[#0B0D12]" style={{ color: bank.color }}>
             <Landmark size={20} />
           </div>
-          <div>
-            <div className="flex items-center gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <h2 className="font-serif text-2xl font-bold text-zinc-100 m-0 leading-tight tracking-wide uppercase">
                 {bank.name}
               </h2>
@@ -448,7 +448,7 @@ export default function BankPortal({ bank, company, playerCash, personalDossier,
               <span className="bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded text-[10px] font-mono tracking-widest">RATING: {corporateDossier?.ratingTier || 'N/A'}</span>
             </div>
             
-            <div className="flex items-center gap-6 mt-2">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1 mt-2">
               <div className="text-[11px] uppercase tracking-[0.1em] text-zinc-500">
                 Base Rate: <span className="text-zinc-200">{(baseRate * 100).toFixed(1)}%</span>
               </div>

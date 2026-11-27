@@ -75,7 +75,7 @@ export default function Tabs({
       )}
       style={sticky ? { top: `${top}px` } : undefined}
     >
-      <div className={cn('flex items-center', inset === 'page' && 'px-4 md:px-6')}>
+      <div className={cn('flex items-center', inset === 'page' && 'page-frame')}>
       <div ref={containerRef} role="tablist" aria-label={label} onKeyDown={onKeyDown} className="flex relative items-center">
         {tabs.map((tab) => {
           const isActive = activeId === tab.id;
