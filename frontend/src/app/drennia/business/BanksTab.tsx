@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import BankPortal from './BankPortal';
 import { Landmark, ShieldCheck, TrendingUp, ArrowRight, Wallet, Activity, Target, Building2, User, ChevronLeft } from 'lucide-react';
-import { ResponsiveContainer, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 const T = {
   bg: '#0B0D12',
@@ -58,7 +57,12 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
     import('@/lib/api').then(({ companyApi }) => {
       if (companyApi) {
         companyApi.getMy().then(res => {
-          setMyCompanies(res.data.filter((c: any) => c.industry_id !== 'finance' && c.status !== 'DELETED' && !c.name?.includes('[DELETED')));
+          const list = res.data.filter((c: any) => c.industry_id !== 'finance' && c.status !== 'DELETED' && !c.name?.includes('[DELETED'));
+          setMyCompanies(list);
+          // The Business page clears its selected company on every tab but Companies, so
+          // `company` is usually null here. Borrow for the player's operating company (a
+          // character has at most one); the "Borrowing for" picker can still change it.
+          setActiveCompany((prev: any) => prev || list[0] || null);
         }).catch(err => console.error(err));
       }
     });
@@ -197,7 +201,7 @@ export default function BanksTab({ company, playerCash, onRefresh }: { company: 
           company={activeCompany}
           personalDossier={personalDossier}
           corporateDossier={corporateDossier}
-          getRatingColor={getRatingColor}
+          loadError={loadError}
         />
       );
     }
@@ -339,84 +343,170 @@ function FinancialDistrict({ banks, onSelectBank }: any) {
 // ─────────────────────────────────────────────────────────────────────────────
 // FINANCIAL PROFILE
 // ─────────────────────────────────────────────────────────────────────────────
-function FinancialProfile({ company, personalDossier, corporateDossier, getRatingColor }: any) {
-  // Only measured inputs from the credit dossiers (no invented axes or placeholder values:
-  // players read every chart as fact). Each is scaled to 0-100 for the shape.
-  const clamp = (n: number) => Math.max(0, Math.min(100, n));
-  const radarData = [
-    { subject: 'Character', value: clamp(personalDossier?.metrics?.character || 0) },
-    { subject: 'Capacity', value: clamp(((personalDossier?.metrics?.capacity || 0) + (corporateDossier?.metrics?.capacity || 0)) / 50000) },
-    { subject: 'Capital', value: clamp(((personalDossier?.metrics?.capital || 0) + (corporateDossier?.metrics?.capital || 0)) / 2000000) },
-    { subject: 'Collateral', value: clamp(((personalDossier?.metrics?.collateral || 0) + (corporateDossier?.metrics?.collateral || 0)) / 2000000) },
-  ];
-
-  const totalCapital = Math.max(0, (personalDossier?.metrics?.capital || 0) + (corporateDossier?.metrics?.capital || 0));
-  const totalCollateral = Math.max(0, (personalDossier?.metrics?.collateral || 0) + (corporateDossier?.metrics?.collateral || 0));
+function FinancialProfile({ company, personalDossier, corporateDossier, loadError }: any) {
+  // Every figure here comes from the bank's dossiers, which read real rows (cash, net
+  // worth, book value, company debt, loans still owed). Players read every number as
+  // a fact, so a missing figure is left out with a line saying when it will appear;
+  // nothing is scaled, floored or filled in.
+  const companyDossier = company && corporateDossier ? corporateDossier : null;
 
   return (
-    <div className="flex flex-col animate-slide-in w-full pb-10 pt-5 md:pt-0 md:pl-8 space-y-10">
+    <div className="flex w-full animate-slide-in flex-col gap-6 pb-10 pt-5 md:pl-8 md:pt-0">
       <div>
-        <h2 className="font-serif text-2xl font-bold text-zinc-100 mb-2">Unified Credit Profile</h2>
-        <p className="text-sm text-zinc-400">Your consolidated financial health and credit standing.</p>
+        <h2 className="mb-1 font-serif text-2xl font-bold text-ink">Credit profile</h2>
+        <p className="text-[14px] text-ink-dim">What the State Bank sees when you ask for a loan. Figures are from your accounts as they stand now.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Scores */}
-        <div className="col-span-1 flex flex-col gap-4">
-          <div className="bg-[#13161E] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center">
-            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Personal Rating</div>
-            <div className="flex items-baseline gap-3">
-              <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(personalDossier?.ratingTier || 'D') }}>
-                {personalDossier?.ratingTier || 'N/A'}
-              </div>
-              <div className="text-xs text-zinc-400">Score: {personalDossier?.riskScore || 0}/100</div>
-            </div>
-          </div>
-          <div className={`bg-[#13161E] border border-zinc-800 rounded-lg p-6 flex-1 flex flex-col justify-center ${!company ? 'opacity-50 grayscale' : ''}`}>
-            <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Corporate Rating</div>
-            {company ? (
-              <div className="flex items-baseline gap-3">
-                <div className="text-4xl font-serif font-bold" style={{ color: getRatingColor(corporateDossier?.ratingTier || 'D') }}>
-                  {corporateDossier?.ratingTier || 'N/A'}
-                </div>
-                <div className="text-xs text-zinc-400">Score: {corporateDossier?.riskScore || 0}/100</div>
-              </div>
-            ) : (
-              <div className="text-xs text-zinc-500 italic mt-2">No active company</div>
-            )}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ProfileCard kicker="Personal" title="You" dossier={personalDossier}
+          missing="Your personal credit file could not be loaded. Reopen the Banks tab to try again.">
+          {personalDossier && (
+            <>
+              <dl>
+                <Figure label="Cash in hand" value={money(personalDossier.metrics?.capacity)} />
+                <Figure label="Net worth" value={money(personalDossier.metrics?.capital)} hint="Cash, company book value and shares, less what you owe." />
+                <Figure label="Owed to the bank" value={money(owed(personalDossier.activeLoans))} />
+                <Figure label="Monthly repayments" value={money(monthly(personalDossier.activeLoans))} />
+                {personalDossier.personalLoanLimit !== undefined && (
+                  <Figure label="Personal loan limit" value={money(personalDossier.personalLoanLimit)} hint="The most the bank will lend you personally, set by your net worth." />
+                )}
+              </dl>
+              <LoanList loans={personalDossier.activeLoans}
+                empty="No personal loan. If you borrow from the bank, the loan and what is left to repay appear here." />
+            </>
+          )}
+        </ProfileCard>
 
-        {/* Radar Chart */}
-        <div className="col-span-1 bg-[#13161E] border border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center min-h-[250px]">
-          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 w-full text-center">Credit factors</div>
-          <div className="w-full flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                <PolarGrid stroke="#262B36" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#A3A4AC', fontSize: 10 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                <Radar name="Credit" dataKey="value" stroke={T.gold} fill={T.gold} fillOpacity={0.2} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Capital figures (real dossier numbers) */}
-        <div className="col-span-1 flex flex-col justify-center gap-4 rounded-card border border-line bg-surface p-6">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Capital (you + company)</div>
-            <div className="mt-1 font-mono text-[22px] font-semibold text-ink">${totalCapital.toLocaleString('en-US')}</div>
-          </div>
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Collateral</div>
-            <div className="mt-1 font-mono text-[22px] font-semibold text-ink">${totalCollateral.toLocaleString('en-US')}</div>
-          </div>
-        </div>
+        {!company ? (
+          <section aria-label="Company credit" className="rounded-card border border-line bg-surface p-6">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Company</div>
+            <p className="mt-3 text-[14px] text-ink-dim">You don&apos;t run a company yet. Once you open one, its balance sheet and bank loans appear here.</p>
+          </section>
+        ) : (
+          <ProfileCard kicker="Company" title={company.name} dossier={companyDossier}
+            missing={loadError ? `The company's credit file could not be loaded: ${loadError}` : "The company's credit file could not be loaded. Reopen the Banks tab to try again."}>
+            {companyDossier && <CompanyFigures dossier={companyDossier} />}
+          </ProfileCard>
+        )}
       </div>
     </div>
   );
 }
+
+function CompanyFigures({ dossier }: { dossier: any }) {
+  const m = dossier.metrics || {};
+  const assets = Number(m.totalAssets) || 0;
+  const liabilities = Number(m.totalLiabilities) || 0;
+  const share = assets > 0 ? Math.min(1, liabilities / assets) : null;
+  return (
+    <>
+      <dl>
+        <Figure label="Cash" value={money(m.capacity)} />
+        <Figure label="Total assets" value={money(assets)} hint="Cash, cars in stock, land, owned plants and lines, shares held." />
+        <Figure label="Liabilities" value={money(liabilities)} hint="Company debt plus bank loans still owed." />
+        <Figure label="Book value" value={money(m.equity)} hint="Assets less liabilities." />
+        <Figure label="Monthly repayments" value={money(monthly(dossier.activeLoans))} />
+      </dl>
+
+      <div className="mt-5">
+        <div className="flex items-baseline justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Debt to assets</span>
+          {share !== null && <span className="font-mono text-[14px] font-semibold text-ink">{(share * 100).toFixed(1)}%</span>}
+        </div>
+        {share === null ? (
+          <p className="mt-2 text-[13px] text-ink-faint">Appears once the company owns something: cash, cars, land or a plant.</p>
+        ) : (
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-raised" aria-hidden="true">
+            <div className={`h-full rounded-full ${share >= 0.8 ? 'bg-bad' : share >= 0.5 ? 'bg-warn' : 'bg-good'}`} style={{ width: `${share * 100}%` }} />
+          </div>
+        )}
+      </div>
+
+      <LoanList loans={dossier.activeLoans}
+        empty="No bank loans. Facilities you take from a bank appear here with what is left to repay." />
+    </>
+  );
+}
+
+const RATING_TONE: Record<string, string> = { AAA: 'text-good', AA: 'text-good', A: 'text-good', BBB: 'text-accent', BB: 'text-accent', B: 'text-accent' };
+
+function ProfileCard({ kicker, title, dossier, missing, children }: { kicker: string; title: string; dossier: any; missing: string; children: React.ReactNode }) {
+  return (
+    <section aria-label={`${kicker} credit`} className="rounded-card border border-line bg-surface p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{kicker}</div>
+          <h3 className="mt-1 truncate text-[18px] font-semibold text-ink">{title}</h3>
+        </div>
+        {dossier?.ratingTier && (
+          <div className="shrink-0 text-right">
+            <div className={`font-serif text-3xl font-bold leading-none ${RATING_TONE[dossier.ratingTier] || 'text-bad'}`}>{dossier.ratingTier}</div>
+            <div className="mt-1 text-[12px] text-ink-dim">Score {dossier.riskScore}/100</div>
+          </div>
+        )}
+      </div>
+      <div className="mt-4">
+        {dossier ? children : <p className="text-[14px] text-ink-dim">{missing}</p>}
+      </div>
+    </section>
+  );
+}
+
+function Figure({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-line py-2.5 last:border-0">
+      <dt>
+        <div className="text-[13px] text-ink-dim">{label}</div>
+        {hint && <div className="text-[12px] text-ink-faint">{hint}</div>}
+      </dt>
+      <dd className="font-mono text-[14px] font-semibold text-ink">{value}</dd>
+    </div>
+  );
+}
+
+const FACILITY_NAME: Record<string, string> = {
+  personal: 'Personal loan', revolver: 'Revolving credit', term: 'Term loan', trade: 'Trade finance',
+};
+
+function LoanList({ loans, empty }: { loans: any[] | undefined; empty: string }) {
+  const rows = Array.isArray(loans) ? loans : [];
+  return (
+    <div className="mt-5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Bank loans</div>
+      {rows.length === 0 ? (
+        <p className="mt-2 text-[13px] text-ink-faint">{empty}</p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {rows.map((l: any) => {
+            const defaulted = String(l.status).toUpperCase() === 'DEFAULTED';
+            return (
+              <li key={l.id} className="rounded-control border border-line bg-raised px-3.5 py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] font-medium text-ink">
+                    {FACILITY_NAME[l.facility_type] || l.facility_type}
+                    {defaulted && <span className="ml-2 text-[12px] font-semibold text-bad">Defaulted</span>}
+                  </span>
+                  <span className="font-mono text-[14px] font-semibold text-ink">{money(l.remaining_principal)}</span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap justify-between gap-x-3 text-[12px] text-ink-dim">
+                  <span>{money(l.monthly_payment)} a month{l.months_remaining != null ? ` · ${l.months_remaining} months left` : ''}</span>
+                  <span>{(Number(l.interest_rate) * 100).toFixed(2)}% a year</span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function money(v: unknown): string {
+  const n = Math.round(Number(v) || 0);
+  return `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US')}`;
+}
+const owed = (loans: any[] | undefined) => (loans || []).reduce((s, l) => s + (Number(l.remaining_principal) || 0), 0);
+const monthly = (loans: any[] | undefined) => (loans || []).filter(l => String(l.status).toUpperCase() !== 'DEFAULTED').reduce((s, l) => s + (Number(l.monthly_payment) || 0), 0);
 
 // BankPortal moved to BankPortal.tsx
 

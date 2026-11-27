@@ -6,7 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   amountDue, facilityBaseRate, isCompanyFacility, monthlyPayment, parseAmortization, parseLoanAmount, parseTerm,
-  personalLoanAllowed, personalLoanLimit, settleMonth, LoanState,
+  personalLoanAllowed, personalLoanLimit, settleMonth, LoanState, companyBalanceSheet,
 } from '../src/api/services/banking.rules';
 import {
   BANK_DEFAULT_AFTER_MISSES, COMPANY_LOAN_DEFAULT_TERM, COMPANY_LOAN_MAX_TERM, PERSONAL_LOAN_MAX, PERSONAL_LOAN_MIN,
@@ -110,5 +110,25 @@ describe('Loans are repaid', () => {
   it('paying again resets the missed streak', () => {
     const s = loan({ missed: BANK_DEFAULT_AFTER_MISSES - 1 });
     assert.equal(settleMonth(s, true).missed, 0);
+  });
+});
+
+describe('The bank reads a company balance sheet from book value', () => {
+  it('borrowing adds the same amount to assets and liabilities and leaves equity alone', () => {
+    // A firm worth $10M with no debt borrows $4M: cash +4M, loan owed +4M, book value unchanged.
+    const before = companyBalanceSheet(10_000_000, 0, 0);
+    const after = companyBalanceSheet(10_000_000, 0, 4_000_000);
+    assert.equal(after.equity, before.equity);
+    assert.equal(after.totalAssets - before.totalAssets, 4_000_000);
+    assert.equal(after.totalLiabilities - before.totalLiabilities, 4_000_000);
+  });
+  it('assets always equal liabilities plus equity, and LTV is liabilities over assets', () => {
+    const b = companyBalanceSheet(6_000_000, 1_000_000, 3_000_000);
+    assert.equal(b.totalAssets, b.totalLiabilities + b.equity);
+    assert.equal(b.ltv, b.totalLiabilities / b.totalAssets);
+    assert.ok(b.ltv > 0 && b.ltv < 1);
+  });
+  it('an empty company has nothing to show, not a made-up figure', () => {
+    assert.deepEqual(companyBalanceSheet(0, 0, 0), { totalAssets: 0, totalLiabilities: 0, equity: 0, ltv: 0 });
   });
 });

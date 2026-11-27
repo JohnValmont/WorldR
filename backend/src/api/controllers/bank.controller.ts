@@ -1,4 +1,5 @@
 import { refreshCompanyValue } from '../services/companyValue';
+import { OWED_COMPANY_LOAN_STATUSES } from '../constants/companyAssets';
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../config/database';
 import { randomUUID } from 'crypto';
@@ -7,7 +8,7 @@ import {
   PERSONAL_LOAN_SPREAD, PERSONAL_LOAN_TERM_MONTHS,
 } from '../constants/banking';
 import {
-  facilityBaseRate, isCompanyFacility, monthlyPayment, parseAmortization, parseLoanAmount, parseTerm, personalLoanAllowed, personalLoanLimit,
+  companyBalanceSheet, facilityBaseRate, isCompanyFacility, monthlyPayment, parseAmortization, parseLoanAmount, parseTerm, personalLoanAllowed, personalLoanLimit,
 } from '../services/banking.rules';
 
 // ── Helper: resolve calling character from user session ─────────────────────
@@ -83,15 +84,16 @@ export class BankController {
       let trustScore = 0;
       let engineeringRep = 0;
 
-      const activeLoans = await db('banking_active_loans').where({ borrower_id: companyId, status: 'ACTIVE' });
-      const bankingLiabilities = activeLoans.reduce((sum: number, l: any) => sum + Number(l.remaining_principal), 0);
-      
-      const totalLiabilities = dbDebt + bankingLiabilities;
+      // Every loan the company still owes (a defaulted loan is still owed).
+      const owedLoans = await db('banking_active_loans')
+        .where({ borrower_type: 'company', borrower_id: companyId })
+        .whereIn('status', OWED_COMPANY_LOAN_STATUSES)
+        .orderBy('created_at', 'asc');
+      const activeLoans = owedLoans.filter((l: any) => l.status === 'ACTIVE');
+      const bankingLiabilities = owedLoans.reduce((sum: number, l: any) => sum + Number(l.remaining_principal), 0);
 
-      // company_value in DB is Equity from manufacturing perspective: Cash + HardAssets(Land/Factories) - dbDebt.
-      // Therefore, Gross Assets (Collateral) = dbEquity + dbDebt
-      const totalAssets = dbEquity + dbDebt;
-      const equity = totalAssets - totalLiabilities;
+      // company_value is the one book value (cash − debt − bank loans owed + assets).
+      const { totalAssets, totalLiabilities, equity } = companyBalanceSheet(dbEquity, dbDebt, bankingLiabilities);
 
       // State Rescue Guarantee: The National Bank implicitly backs manufacturing firms with a minimum $25M collateral 
       // allowance so distressed players can borrow their way out of bankruptcy.
@@ -164,7 +166,7 @@ export class BankController {
           dscr,
           ltv,
         },
-        activeLoans,
+        activeLoans: owedLoans,
         baseRate,
       });
     } catch (error) {
@@ -226,9 +228,8 @@ export class BankController {
         const dbEquity = Number(finances.company_value || 0);
         const dbDebt = Number(finances.debt || 0);
 
-        const currentLiabilities = dbDebt + bankingLiabilities;
-        // company_value is equity (cash + hard assets - debt), so gross assets = equity + debt.
-        const totalAssets = dbEquity + dbDebt;
+        // company_value is the one book value (cash − debt − bank loans owed + assets).
+        const { totalAssets, totalLiabilities: currentLiabilities } = companyBalanceSheet(dbEquity, dbDebt, bankingLiabilities);
         // State Rescue Guarantee: the bank counts at least $25M of collateral for any company.
         const effectiveAssets = Math.max(totalAssets, 25_000_000);
         const ltv = (currentLiabilities + principalAmount) / effectiveAssets;

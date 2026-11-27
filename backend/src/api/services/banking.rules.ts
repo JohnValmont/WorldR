@@ -59,6 +59,24 @@ export function personalLoanAllowed(amount: number, netWorth: number): { ok: boo
   return { ok: amount >= PERSONAL_LOAN_MIN && amount <= limit, limit };
 }
 
+/**
+ * A company's balance sheet as the bank reads it, built on the ONE book-value
+ * definition (services/companyValue.ts). company_value already has company debt
+ * AND bank loans still owed taken off, so:
+ *   liabilities = company debt + bank loans still owed
+ *   assets      = book value + liabilities
+ *   equity      = book value
+ * (Before, the dossier used assets = book value + debt and equity = assets − liabilities,
+ * which left a loan's cash out of assets and took the loan off equity twice.)
+ */
+export interface CompanyBalanceSheet { totalAssets: number; totalLiabilities: number; equity: number; ltv: number }
+export function companyBalanceSheet(bookValue: number, companyDebt: number, bankLoansOwed: number): CompanyBalanceSheet {
+  const equity = Math.max(0, bookValue);
+  const totalLiabilities = Math.max(0, companyDebt) + Math.max(0, bankLoansOwed);
+  const totalAssets = equity + totalLiabilities;
+  return { totalAssets, totalLiabilities, equity, ltv: totalAssets > 0 ? totalLiabilities / totalAssets : 0 };
+}
+
 export interface LoanState {
   remaining: number;          // principal still owed
   yearlyRate: number;
